@@ -1,10 +1,11 @@
 from aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
+from aiogram.types import CallbackQuery
 
 from db import check_user, add_user, get_all_users, get_user, delete_user
 from states import Registration
-from keyboards import kb_main
+from keyboards import kb_main, kb_rank, kb_peak_rank
 from config import CHANNEL_ID, ADMIN_ID, MAX_PLAYERS
 
 
@@ -38,28 +39,62 @@ async def process_epic_id(msg: types.Message, state: FSMContext):
 
 async def process_discord(msg: types.Message, state: FSMContext):
     await state.update_data(discord=msg.text)
-    await msg.answer("Введите ваш текущий ранг:")
+    await msg.answer(
+        "Выберите ваш <b>текущий ранг</b> (актуальный MMR указан рядом):",
+        reply_markup=kb_rank,
+        parse_mode="HTML"
+    )
     await state.set_state(Registration.rank)
 
 
-async def process_rank(msg: types.Message, state: FSMContext):
-    await state.update_data(rank=msg.text)
-    await msg.answer("Введите ваш пик ранг:")
+async def process_rank_callback(callback: CallbackQuery, state: FSMContext):
+    rank = callback.data.split(":", 1)[1]
+    await state.update_data(rank=rank)
+    await callback.message.edit_reply_markup()
+    await callback.message.answer(
+        f"✅ Текущий ранг: <b>{rank}</b>\n\nТеперь выберите ваш <b>пиковый ранг</b>:",
+        reply_markup=kb_peak_rank,
+        parse_mode="HTML"
+    )
     await state.set_state(Registration.peak_rank)
+    await callback.answer()
 
 
-async def process_peak_rank(msg: types.Message, state: FSMContext):
+async def process_peak_rank_callback(callback: CallbackQuery, state: FSMContext):
+    peak_rank = callback.data.split(":", 1)[1]
     data = await state.get_data()
-    tg_id = msg.from_user.id
+    tg_id = callback.from_user.id
     await add_user(
         tg_id=tg_id,
         epic=data.get("epic", ""),
         discord=data.get("discord", ""),
         rank=data.get("rank", ""),
-        peak_rank=msg.text
+        peak_rank=peak_rank
     )
     await state.clear()
-    await msg.answer("Ты успешно зарегистрирован! Ожидай начала турнира.")
+    await callback.message.edit_reply_markup()
+    await callback.message.answer(
+        f"✅ Пиковый ранг: <b>{peak_rank}</b>\n\n"
+        f"🎉 Ты успешно зарегистрирован! Ожидай начала турнира.",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+async def me_handler(msg: types.Message):
+    user = await get_user(msg.from_user.id)
+    if not user:
+        await msg.answer("Ты не зарегистрирован. Нажми кнопку Регистрация.")
+        return
+
+    await msg.answer(
+        f"📋 <b>Твои данные:</b>\n"
+        f"Epic ID: {user['epic']}\n"
+        f"Discord: {user['discord']}\n"
+        f"Ранг: {user['rank']}\n"
+        f"Пик ранг: {user['peak_rank']}",
+        parse_mode="HTML"
+    )
 
 
 async def list_handler(msg: types.Message):
@@ -72,7 +107,7 @@ async def list_handler(msg: types.Message):
         await msg.answer("Никто ещё не зарегистрировался.")
         return
 
-    text = f"👥 Зарегистрировано: {len(users)} / {MAX_PLAYERS}\n\n"
+    text = f"👥 <b>Зарегистрировано: {len(users)} / {MAX_PLAYERS}</b>\n\n"
     for i, u in enumerate(users, 1):
         text += (
             f"{i}. TG: <code>{u['tg_id']}</code>\n"
@@ -83,22 +118,6 @@ async def list_handler(msg: types.Message):
 
     for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
         await msg.answer(chunk, parse_mode="HTML")
-
-
-async def me_handler(msg: types.Message):
-    user = await get_user(msg.from_user.id)
-    if not user:
-        await msg.answer("Ты не зарегистрирован. Нажми кнопку Регистрация.")
-        return
-
-    await msg.answer(
-        f"📋 Твои данные:\n"
-        f"Epic ID: {user['epic']}\n"
-        f"Discord: {user['discord']}\n"
-        f"Ранг: {user['rank']}\n"
-        f"Пик ранг: {user['peak_rank']}",
-        parse_mode="HTML"
-    )
 
 
 async def kick_handler(msg: types.Message):

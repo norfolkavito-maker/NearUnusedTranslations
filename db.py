@@ -2,6 +2,7 @@ import aiosqlite
 
 DB_PATH = "users.db"
 
+
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -15,6 +16,7 @@ async def init_db():
         """)
         await db.commit()
 
+
 async def add_user(tg_id, epic="", discord="", rank="", peak_rank=""):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -23,11 +25,13 @@ async def add_user(tg_id, epic="", discord="", rank="", peak_rank=""):
         )
         await db.commit()
 
+
 async def check_user(tg_id):
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT tg_id FROM users WHERE tg_id = ?", (tg_id,)) as cur:
             row = await cur.fetchone()
             return row is not None
+
 
 async def get_all_users():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -36,12 +40,14 @@ async def get_all_users():
             rows = await cur.fetchall()
             return [dict(row) for row in rows]
 
+
 async def get_user(tg_id):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM users WHERE tg_id = ?", (tg_id,)) as cur:
             row = await cur.fetchone()
             return dict(row) if row else None
+
 
 async def delete_user(tg_id):
     async with aiosqlite.connect(DB_PATH) as db:
