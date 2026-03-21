@@ -58,3 +58,16 @@ async def delete_user(tg_id):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM users WHERE tg_id = ?", (tg_id,))
         await db.commit()
+
+
+async def delete_all_users():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM users")
+        await db.commit()
+
+
+async def count_users():
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM users") as cur:
+            row = await cur.fetchone()
+            return row[0] if row else 0

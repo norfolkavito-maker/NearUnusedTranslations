@@ -1,7 +1,15 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 kb_main = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="Регистрация")]],
+    keyboard=[[KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")]],
+    resize_keyboard=True
+)
+
+kb_admin_main = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
+        [KeyboardButton(text="⚙️ Админ-панель")],
+    ],
     resize_keyboard=True
 )
 
@@ -49,12 +57,34 @@ RANK_MMR_TABLE = {
 
 
 def get_rank_label(tier_idx: int, sub: int, div: int) -> str:
-    tier = TIERS[tier_idx][1]
-    return f"{tier} {sub} / Дивизион {div}"
+    return f"{TIERS[tier_idx][1]} {sub} / Дивизион {div}"
 
 
 def get_auto_mmr(tier_idx: int, sub: int, div: int) -> int:
     return RANK_MMR_TABLE.get((tier_idx, sub, div), 0)
+
+
+def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarkup:
+    buttons = [[InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)]]
+    if group_link:
+        buttons.append([InlineKeyboardButton(text="👥 Вступить в группу", url=group_link)])
+    buttons.append([InlineKeyboardButton(text="✅ Я подписался — проверить", callback_data="sub_check")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📋 Список участников", callback_data="adm:list")],
+    [InlineKeyboardButton(text="📊 Статистика",        callback_data="adm:stats")],
+    [
+        InlineKeyboardButton(text="🗑 Удалить игрока", callback_data="adm:kick"),
+        InlineKeyboardButton(text="💥 Удалить всех",   callback_data="adm:deleteall"),
+    ],
+])
+
+kb_deleteall_confirm = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text="✅ Да, удалить всех", callback_data="adm:deleteall_yes"),
+    InlineKeyboardButton(text="❌ Отмена",            callback_data="adm:cancel"),
+]])
 
 
 def kb_tiers(prefix: str) -> InlineKeyboardMarkup:
@@ -91,8 +121,5 @@ def kb_divisions(prefix: str, tier_idx: int, sub: int) -> InlineKeyboardMarkup:
             text=f"Дивизион {d}  •  {mmr} MMR",
             callback_data=f"rd:{prefix}:{tier_idx}:{sub}:{d}"
         )])
-    buttons.append([InlineKeyboardButton(
-        text="◀️ Назад",
-        callback_data=f"rsb:{prefix}:{tier_idx}"
-    )])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=f"rsb:{prefix}:{tier_idx}")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
