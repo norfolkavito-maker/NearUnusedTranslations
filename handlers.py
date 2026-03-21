@@ -2,10 +2,10 @@ from aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 
-from db import check_user, add_user
+from db import check_user, add_user, get_all_users, get_user, delete_user
 from states import Registration
 from keyboards import kb_main
-from config import CHANNEL_ID
+from config import CHANNEL_ID, ADMIN_ID, MAX_PLAYERS
 
 
 async def start_handler(msg: types.Message):
@@ -60,3 +60,66 @@ async def process_peak_rank(msg: types.Message, state: FSMContext):
     )
     await state.clear()
     await msg.answer("Ты успешно зарегистрирован! Ожидай начала турнира.")
+
+
+async def list_handler(msg: types.Message):
+    if msg.from_user.id != ADMIN_ID:
+        await msg.answer("Нет доступа.")
+        return
+
+    users = await get_all_users()
+    if not users:
+        await msg.answer("Никто ещё не зарегистрировался.")
+        return
+
+    text = f"👥 Зарегистрировано: {len(users)} / {MAX_PLAYERS}\n\n"
+    for i, u in enumerate(users, 1):
+        text += (
+            f"{i}. TG: <code>{u['tg_id']}</code>\n"
+            f"   Epic: {u['epic']}\n"
+            f"   Discord: {u['discord']}\n"
+            f"   Ранг: {u['rank']} | Пик: {u['peak_rank']}\n\n"
+        )
+
+    for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+        await msg.answer(chunk, parse_mode="HTML")
+
+
+async def me_handler(msg: types.Message):
+    user = await get_user(msg.from_user.id)
+    if not user:
+        await msg.answer("Ты не зарегистрирован. Нажми кнопку Регистрация.")
+        return
+
+    await msg.answer(
+        f"📋 Твои данные:\n"
+        f"Epic ID: {user['epic']}\n"
+        f"Discord: {user['discord']}\n"
+        f"Ранг: {user['rank']}\n"
+        f"Пик ранг: {user['peak_rank']}",
+        parse_mode="HTML"
+    )
+
+
+async def kick_handler(msg: types.Message):
+    if msg.from_user.id != ADMIN_ID:
+        await msg.answer("Нет доступа.")
+        return
+
+    args = msg.text.split()
+    if len(args) < 2:
+        await msg.answer("Использование: /kick <tg_id>")
+        return
+
+    try:
+        tg_id = int(args[1])
+    except ValueError:
+        await msg.answer("Неверный ID.")
+        return
+
+    if not await check_user(tg_id):
+        await msg.answer("Пользователь не найден.")
+        return
+
+    await delete_user(tg_id)
+    await msg.answer(f"Пользователь {tg_id} удалён из регистрации.")

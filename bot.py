@@ -10,6 +10,9 @@ from handlers import (
     process_discord,
     process_rank,
     process_peak_rank,
+    list_handler,
+    me_handler,
+    kick_handler,
 )
 from db import init_db
 from config import TOKEN
@@ -26,6 +29,9 @@ async def main():
     await init_db()
 
     dp.message.register(start_handler, Command(commands=["start"]))
+    dp.message.register(list_handler, Command(commands=["list"]))
+    dp.message.register(me_handler, Command(commands=["me"]))
+    dp.message.register(kick_handler, Command(commands=["kick"]))
     dp.message.register(registration_handler, F.text == "Регистрация")
     dp.message.register(process_epic_id, Registration.epic_id)
     dp.message.register(process_discord, Registration.discord)
