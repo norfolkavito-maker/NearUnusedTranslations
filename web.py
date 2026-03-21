@@ -35,7 +35,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <h1>Участники турнира</h1>
 <p class="subtitle">Список зарегистрированных игроков</p>
 <div class="toolbar">
-  <span class="count">{count} / {max_players} игроков</span>
+  <span class="count">{count} игроков</span>
   <a href="/" class="btn btn-refresh">🔄 Обновить</a>
   <a href="/export" class="btn btn-excel">📥 Скачать Excel</a>
 </div>
@@ -70,14 +70,13 @@ EMPTY_ROW = '<tr><td colspan="6" class="empty">Никто ещё не зарег
 
 
 async def index(request):
-    from config import MAX_PLAYERS
     users = await get_all_users()
 
     rows = "\n".join(
         ROW_TEMPLATE.format(num=i, **u) for i, u in enumerate(users, 1)
     ) if users else EMPTY_ROW
 
-    html = HTML_TEMPLATE.format(count=len(users), max_players=MAX_PLAYERS, rows=rows)
+    html = HTML_TEMPLATE.format(count=len(users), rows=rows)
     return web.Response(text=html, content_type="text/html")
 
 

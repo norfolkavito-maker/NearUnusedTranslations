@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery
 from db import check_user, add_user, get_all_users, get_user, delete_user
 from states import Registration
 from keyboards import kb_main, kb_rank, kb_peak_rank
-from config import CHANNEL_ID, ADMIN_ID, MAX_PLAYERS
+from config import CHANNEL_ID, ADMIN_ID
 
 
 async def start_handler(msg: types.Message):
@@ -107,7 +107,7 @@ async def list_handler(msg: types.Message):
         await msg.answer("Никто ещё не зарегистрировался.")
         return
 
-    text = f"👥 <b>Зарегистрировано: {len(users)} / {MAX_PLAYERS}</b>\n\n"
+    text = f"👥 <b>Зарегистрировано: {len(users)}</b>\n\n"
     for i, u in enumerate(users, 1):
         text += (
             f"{i}. TG: <code>{u['tg_id']}</code>\n"

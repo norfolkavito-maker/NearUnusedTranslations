@@ -7,4 +7,3 @@ except ValueError:
     ADMIN_ID = 0
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@ebka_news")
 GROUP_ID = int(os.getenv("GROUP_ID", -1001234567890))
-MAX_PLAYERS = 64
