@@ -64,8 +64,10 @@ async def process_peak_rank_callback(callback: CallbackQuery, state: FSMContext)
     peak_rank = callback.data.split(":", 1)[1]
     data = await state.get_data()
     tg_id = callback.from_user.id
+    username = f"@{callback.from_user.username}" if callback.from_user.username else callback.from_user.full_name
     await add_user(
         tg_id=tg_id,
+        username=username,
         epic=data.get("epic", ""),
         discord=data.get("discord", ""),
         rank=data.get("rank", ""),

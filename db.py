@@ -8,20 +8,25 @@ async def init_db():
         await db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             tg_id INTEGER PRIMARY KEY,
+            username TEXT,
             epic TEXT,
             discord TEXT,
             rank TEXT,
             peak_rank TEXT
         )
         """)
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN username TEXT")
+        except Exception:
+            pass
         await db.commit()
 
 
-async def add_user(tg_id, epic="", discord="", rank="", peak_rank=""):
+async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank=""):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO users (tg_id, epic, discord, rank, peak_rank) VALUES (?, ?, ?, ?, ?)",
-            (tg_id, epic, discord, rank, peak_rank)
+            "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank) VALUES (?, ?, ?, ?, ?, ?)",
+            (tg_id, username, epic, discord, rank, peak_rank)
         )
         await db.commit()
 

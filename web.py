@@ -43,7 +43,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <thead>
     <tr>
       <th>#</th>
-      <th>Telegram ID</th>
+      <th>Telegram</th>
+      <th>TG ID</th>
       <th>Epic ID</th>
       <th>Discord</th>
       <th>Ранг</th>
@@ -59,6 +60,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
 ROW_TEMPLATE = """<tr>
   <td class="num">{num}</td>
+  <td>{username}</td>
   <td>{tg_id}</td>
   <td>{epic}</td>
   <td>{discord}</td>
@@ -66,7 +68,7 @@ ROW_TEMPLATE = """<tr>
   <td>{peak_rank}</td>
 </tr>"""
 
-EMPTY_ROW = '<tr><td colspan="6" class="empty">Никто ещё не зарегистрировался</td></tr>'
+EMPTY_ROW = '<tr><td colspan="7" class="empty">Никто ещё не зарегистрировался</td></tr>'
 
 
 async def index(request):
@@ -87,7 +89,7 @@ async def export_excel(request):
     ws = wb.active
     ws.title = "Участники"
 
-    headers = ["#", "Telegram ID", "Epic ID", "Discord", "Ранг", "Пик ранг"]
+    headers = ["#", "Telegram", "TG ID", "Epic ID", "Discord", "Ранг", "Пик ранг"]
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="1E90FF")
     header_align = Alignment(horizontal="center", vertical="center")
@@ -98,13 +100,13 @@ async def export_excel(request):
         cell.fill = header_fill
         cell.alignment = header_align
 
-    col_widths = [5, 15, 20, 20, 18, 18]
+    col_widths = [5, 18, 15, 20, 20, 18, 18]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
     alt_fill = PatternFill("solid", fgColor="1A1A2E")
     for row_idx, u in enumerate(users, 2):
-        row_data = [row_idx - 1, u["tg_id"], u["epic"], u["discord"], u["rank"], u["peak_rank"]]
+        row_data = [row_idx - 1, u.get("username", ""), u["tg_id"], u["epic"], u["discord"], u["rank"], u["peak_rank"]]
         fill = alt_fill if row_idx % 2 == 0 else None
         for col_idx, value in enumerate(row_data, 1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
