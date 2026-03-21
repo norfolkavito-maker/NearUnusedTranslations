@@ -17,6 +17,7 @@ from handlers import (
 from db import init_db
 from config import TOKEN
 from states import Registration
+from web import start_web
 
 
 async def main():
@@ -27,6 +28,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     await init_db()
+    await start_web()
 
     dp.message.register(start_handler, Command(commands=["start"]))
     dp.message.register(list_handler, Command(commands=["list"]))

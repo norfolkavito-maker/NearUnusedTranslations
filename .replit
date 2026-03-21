@@ -21,13 +21,19 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python bot.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
+waitForPort = 5000
 
 [userenv]
 
 [userenv.shared]
+ADMIN_ID = "6852512620"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
