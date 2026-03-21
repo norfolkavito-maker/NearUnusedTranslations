@@ -8,6 +8,7 @@ class Registration(StatesGroup):
     rank_mmr = State()
     peak_rank = State()
     peak_rank_mmr = State()
+    tracker = State()
 
 
 class Admin(StatesGroup):

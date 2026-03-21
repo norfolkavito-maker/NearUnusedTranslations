@@ -12,21 +12,23 @@ async def init_db():
             epic TEXT,
             discord TEXT,
             rank TEXT,
-            peak_rank TEXT
+            peak_rank TEXT,
+            tracker TEXT
         )
         """)
-        try:
-            await db.execute("ALTER TABLE users ADD COLUMN username TEXT")
-        except Exception:
-            pass
+        for col in ("username", "tracker"):
+            try:
+                await db.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
         await db.commit()
 
 
-async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank=""):
+async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank="", tracker=""):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank) VALUES (?, ?, ?, ?, ?, ?)",
-            (tg_id, username, epic, discord, rank, peak_rank)
+            "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (tg_id, username, epic, discord, rank, peak_rank, tracker)
         )
         await db.commit()
 

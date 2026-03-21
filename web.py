@@ -29,6 +29,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   tr:hover td {{ background: #222; }}
   .num {{ color: #555; width: 40px; }}
   .empty {{ text-align: center; padding: 40px; color: #555; }}
+  a.tracker-link {{ color: #1e90ff; text-decoration: none; }}
+  a.tracker-link:hover {{ text-decoration: underline; }}
 </style>
 </head>
 <body>
@@ -47,8 +49,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <th>TG ID</th>
       <th>Epic ID</th>
       <th>Discord</th>
-      <th>Ранг</th>
-      <th>Пик ранг</th>
+      <th>Актуальный MMR</th>
+      <th>Пиковый MMR</th>
+      <th>RL Tracker</th>
     </tr>
   </thead>
   <tbody>
@@ -66,18 +69,21 @@ ROW_TEMPLATE = """<tr>
   <td>{discord}</td>
   <td>{rank}</td>
   <td>{peak_rank}</td>
+  <td>{tracker_cell}</td>
 </tr>"""
 
-EMPTY_ROW = '<tr><td colspan="7" class="empty">Никто ещё не зарегистрировался</td></tr>'
+EMPTY_ROW = '<tr><td colspan="8" class="empty">Никто ещё не зарегистрировался</td></tr>'
 
 
 async def index(request):
     users = await get_all_users()
 
-    rows = "\n".join(
-        ROW_TEMPLATE.format(num=i, **u) for i, u in enumerate(users, 1)
-    ) if users else EMPTY_ROW
+    def make_row(i, u):
+        tracker = u.get("tracker") or ""
+        tracker_cell = f'<a class="tracker-link" href="{tracker}" target="_blank">открыть</a>' if tracker else "—"
+        return ROW_TEMPLATE.format(num=i, tracker_cell=tracker_cell, **{k: v for k, v in u.items() if k != "tracker"})
 
+    rows = "\n".join(make_row(i, u) for i, u in enumerate(users, 1)) if users else EMPTY_ROW
     html = HTML_TEMPLATE.format(count=len(users), rows=rows)
     return web.Response(text=html, content_type="text/html")
 
@@ -89,7 +95,7 @@ async def export_excel(request):
     ws = wb.active
     ws.title = "Участники"
 
-    headers = ["#", "Telegram", "TG ID", "Epic ID", "Discord", "Ранг", "Пик ранг"]
+    headers = ["#", "Telegram", "TG ID", "Epic ID", "Discord", "Актуальный MMR", "Пиковый MMR", "RL Tracker"]
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill("solid", fgColor="1E90FF")
     header_align = Alignment(horizontal="center", vertical="center")
@@ -100,13 +106,22 @@ async def export_excel(request):
         cell.fill = header_fill
         cell.alignment = header_align
 
-    col_widths = [5, 18, 15, 20, 20, 18, 18]
+    col_widths = [5, 18, 15, 20, 20, 20, 20, 50]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
     alt_fill = PatternFill("solid", fgColor="1A1A2E")
     for row_idx, u in enumerate(users, 2):
-        row_data = [row_idx - 1, u.get("username", ""), u["tg_id"], u["epic"], u["discord"], u["rank"], u["peak_rank"]]
+        row_data = [
+            row_idx - 1,
+            u.get("username", ""),
+            u["tg_id"],
+            u["epic"],
+            u["discord"],
+            u["rank"],
+            u["peak_rank"],
+            u.get("tracker", ""),
+        ]
         fill = alt_fill if row_idx % 2 == 0 else None
         for col_idx, value in enumerate(row_data, 1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)

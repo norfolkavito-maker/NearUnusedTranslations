@@ -154,7 +154,14 @@ async def on_division(callback: CallbackQuery, state: FSMContext):
         )
         await state.set_state(Registration.peak_rank)
     else:
-        await _save_and_finish(callback, state, peak_rank=rank_value)
+        await state.update_data(peak_rank=rank_value)
+        await callback.message.edit_text(
+            f"✅ Пиковый MMR: <b>{rank_label}</b> — {mmr} MMR\n\n"
+            f"5️⃣ Вставь ссылку на свой <b>RL Tracker</b>:\n"
+            f"<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
+            parse_mode="HTML"
+        )
+        await state.set_state(Registration.tracker)
     await callback.answer()
 
 
@@ -218,7 +225,40 @@ async def process_peak_rank_mmr_text(msg: types.Message, state: FSMContext):
     except ValueError:
         await msg.answer("⚠️ Введи корректное число MMR, например: 2700")
         return
-    await _save_and_finish_msg(msg, state, peak_rank=f"MMR: {mmr}")
+    await state.update_data(peak_rank=f"MMR: {mmr}")
+    await msg.answer(
+        f"✅ Пиковый MMR: <b>{mmr}</b>\n\n"
+        f"5️⃣ Вставь ссылку на свой <b>RL Tracker</b>:\n"
+        f"<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
+        parse_mode="HTML"
+    )
+    await state.set_state(Registration.tracker)
+
+
+async def process_tracker(msg: types.Message, state: FSMContext):
+    url = msg.text.strip()
+    if not url.startswith("http"):
+        await msg.answer(
+            "⚠️ Вставь корректную ссылку, начинающуюся с <b>https://</b>\n"
+            "<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
+            parse_mode="HTML"
+        )
+        return
+    await state.update_data(tracker=url)
+    data = await state.get_data()
+    tg_id = msg.from_user.id
+    username = _get_username(msg.from_user)
+    await add_user(
+        tg_id=tg_id, username=username,
+        epic=data.get("epic", ""), discord=data.get("discord", ""),
+        rank=data.get("rank", ""), peak_rank=data.get("peak_rank", ""),
+        tracker=url
+    )
+    await state.clear()
+    await msg.answer(
+        "🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира.",
+        parse_mode="HTML"
+    )
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -262,13 +302,17 @@ async def me_handler(msg: types.Message):
     if not user:
         await msg.answer("❌ Ты не зарегистрирован. Нажми <b>🎮 Регистрация</b>.", parse_mode="HTML")
         return
+    tracker = user.get("tracker") or "—"
+    tracker_line = f'5️⃣ RL Tracker: <a href="{tracker}">открыть</a>' if tracker != "—" else "5️⃣ RL Tracker: —"
     await msg.answer(
         f"📋 <b>Твоя анкета:</b>\n\n"
         f"1️⃣ Epic ID: <b>{user['epic']}</b>\n"
         f"2️⃣ Discord: <b>{user['discord']}</b>\n"
         f"3️⃣ Актуальный MMR: <b>{user['rank']}</b>\n"
-        f"4️⃣ Пиковый MMR: <b>{user['peak_rank']}</b>",
-        parse_mode="HTML"
+        f"4️⃣ Пиковый MMR: <b>{user['peak_rank']}</b>\n"
+        f"{tracker_line}",
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 
