@@ -97,12 +97,12 @@ async def on_division(callback: CallbackQuery, state: FSMContext):
 
     rank_label = get_rank_label(tier_idx, sub, div)
     mmr = get_auto_mmr(tier_idx, sub, div)
-    rank_value = f"{rank_label} (~{mmr} MMR)"
+    rank_value = f"{rank_label} ({mmr} MMR)"
 
     if prefix == "r":
         await state.update_data(rank=rank_value)
         await callback.message.edit_text(
-            f"✅ Текущий ранг: <b>{rank_label}</b> (~{mmr} MMR)\n\n"
+            f"✅ Текущий ранг: <b>{rank_label}</b> ({mmr} MMR)\n\n"
             f"Теперь выберите ваш <b>пиковый ранг</b>:",
             reply_markup=kb_tiers("p"),
             parse_mode="HTML"
