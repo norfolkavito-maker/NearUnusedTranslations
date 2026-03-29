@@ -61,6 +61,7 @@ async def main():
     dp.message.register(admin_kick_id_handler, Admin.waiting_kick_id)
 
     print("Бот запущен")
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
