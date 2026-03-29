@@ -1,7 +1,11 @@
+import logging
+
 from aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, StateFilter
 from aiogram.types import CallbackQuery
+
+logger = logging.getLogger(__name__)
 
 from db import check_user, add_user, get_all_users, get_user, delete_user, delete_all_users, count_users
 from states import Registration, Admin
@@ -23,6 +27,7 @@ def _main_kb(user_id: int):
 
 # ── /start ───────────────────────────────────────────────────────────────────
 async def start_handler(msg: types.Message):
+    logger.info("Received /start from %s", msg.from_user.id)
     await msg.answer(
         "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
         "Команда <b>📋 Мои данные</b> покажет твою анкету.",

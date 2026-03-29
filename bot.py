@@ -1,7 +1,12 @@
 import asyncio
+import logging
+
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.storage.memory import MemoryStorage
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from handlers import (
     start_handler, registration_handler, sub_check_callback,
@@ -60,9 +65,13 @@ async def main():
     dp.callback_query.register(admin_callback, F.data.startswith("adm:"))
     dp.message.register(admin_kick_id_handler, Admin.waiting_kick_id)
 
-    print("Бот запущен")
+    logger.info("Бот запущен")
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    logger.info("Starting polling...")
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error("Polling failed: %s", e, exc_info=True)
 
 
 if __name__ == "__main__":
