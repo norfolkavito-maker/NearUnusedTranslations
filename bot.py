@@ -17,7 +17,7 @@ from handlers import (
     me_handler, admin_panel_handler, admin_callback, admin_kick_id_handler,
 )
 from db import init_db
-from config import TOKEN
+from config import TOKEN, CHANNEL_ID
 from states import Registration, Admin
 from web import start_web
 
@@ -27,6 +27,11 @@ RANK_STATES = StateFilter(Registration.rank, Registration.peak_rank)
 async def main():
     if not TOKEN:
         raise ValueError("TOKEN не задан!")
+
+    if not CHANNEL_ID or CHANNEL_ID == "@ebka_news":
+        logger.warning("Using default CHANNEL_ID: %s. Set CHANNEL_ID env var to override.", CHANNEL_ID)
+    else:
+        logger.info("Using CHANNEL_ID: %s", CHANNEL_ID)
 
     bot = Bot(token=TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
