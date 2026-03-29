@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from aiogram import types, Bot, F
@@ -44,15 +45,26 @@ async def registration_handler(msg: types.Message, state: FSMContext, bot: Bot):
         return
 
     try:
-        member = await bot.get_chat_member(CHANNEL_ID, tg_id)
+        member = await asyncio.wait_for(
+            bot.get_chat_member(CHANNEL_ID, tg_id),
+            timeout=5,
+        )
         if member.status in ["left", "kicked"]:
             await msg.answer(
                 f"⛔ Чтобы зарегистрироваться нужно подписаться на канал{' и вступить в группу' if GROUP_LINK else ''}.",
                 reply_markup=kb_sub_check(CHANNEL_LINK, GROUP_LINK)
             )
             return
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Subscription check timed out for user %s (channel %s) — allowing registration to proceed",
+            tg_id, CHANNEL_ID,
+        )
     except Exception:
-        pass
+        logger.exception(
+            "Subscription check failed for user %s (channel %s) — allowing registration to proceed",
+            tg_id, CHANNEL_ID,
+        )
 
     await _start_registration(msg)
     await state.set_state(Registration.epic_id)
@@ -75,9 +87,22 @@ async def sub_check_callback(callback: CallbackQuery, state: FSMContext, bot: Bo
         return
 
     try:
-        member = await bot.get_chat_member(CHANNEL_ID, tg_id)
+        member = await asyncio.wait_for(
+            bot.get_chat_member(CHANNEL_ID, tg_id),
+            timeout=5,
+        )
         subscribed = member.status not in ["left", "kicked"]
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Subscription re-check timed out for user %s (channel %s) — treating as subscribed",
+            tg_id, CHANNEL_ID,
+        )
+        subscribed = True
     except Exception:
+        logger.exception(
+            "Subscription re-check failed for user %s (channel %s) — treating as subscribed",
+            tg_id, CHANNEL_ID,
+        )
         subscribed = True
 
     if not subscribed:
