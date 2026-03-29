@@ -7,7 +7,7 @@ try:
 except ValueError:
     ADMIN_ID = 0
 
-SECOND_ADMIN_ID = 6852512620
+SECOND_ADMIN_ID = int(os.getenv("SECOND_ADMIN_ID", "0"))
 ADMIN_IDS = {ADMIN_ID, SECOND_ADMIN_ID}
 
 CHANNEL_ID   = os.getenv("CHANNEL_ID", "@ebka_news")
