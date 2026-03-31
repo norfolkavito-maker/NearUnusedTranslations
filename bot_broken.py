@@ -4,7 +4,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
-from aiogram.exceptions import TelegramConflictError
 
 from handlers import (
     start_handler, registration_handler, sub_check_callback,
@@ -54,6 +53,7 @@ async def main():
         print(f"❌ Ошибка создания бота: {e}")
         return
     
+    dp = Dispatcher(storage=storage)
     print("✅ Dispatcher создан")
     
     # Инициализация БД
@@ -65,7 +65,7 @@ async def main():
         return
     
     # Регистрация обработчиков
-    register_handlers(dp)
+    await register_handlers(dp, bot)
     print("✅ Обработчики зарегистрированы")
     
     # Запуск веб-сервера
@@ -84,31 +84,32 @@ async def main():
             allowed_updates=["message", "callback_query"],
             close_bot_session=False
         )
-    except TelegramConflictError as e:
-        print(f"⚠️ Конфликт ботов: {e}")
-        print("🔄 Перезапуск через 5 секунд...")
-        await asyncio.sleep(5)
-        await main()
     except Exception as e:
         print(f"❌ Критическая ошибка: {e}")
-        import traceback
-        traceback.print_exc()
     finally:
         await bot.session.close()
         print("🛑 Бот остановлен")
+        print(f"⚠️ Ошибка запуска планировщика: {e}")
+    
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        print(f"❌ Ошибка запуска polling: {e}")
+        import traceback
+        traceback.print_exc()
 
 
-def register_handlers(dp: Dispatcher):
-    # Basic commands
+async def register_handlers(dp, bot):
+    # Commands
     dp.message.register(start_handler, Command("start"))
-    dp.message.register(registration_handler, F.text == "🏆 Регистрация на турнир")
-    
-    # Admin panel
+    dp.message.register(me_handler, F.text == "📋 Мои данные")
+    dp.message.register(registration_handler, F.text == "🎮 Регистрация")
+    dp.message.register(delete_self_handler, F.text == "🗑 Удалить мои данные")
     dp.message.register(admin_panel_handler, F.text == "⚙️ Админ-панель")
-    
+
     # subscription recheck
     dp.callback_query.register(sub_check_callback, F.data == "sub_check")
-    
+
     # rank selection
     dp.callback_query.register(on_tier, F.data.startswith("rt:"))
     dp.callback_query.register(on_subtier, F.data.startswith("rs:"))
@@ -116,20 +117,20 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(on_back_to_tiers, F.data.startswith("rb:"))
     dp.callback_query.register(on_back_to_subtiers, F.data.startswith("rsb:"))
     dp.callback_query.register(on_manual_mmr, F.data.startswith("rm:"))
-    
+
     # registration steps
     dp.message.register(process_epic_id, Registration.epic_id)
     dp.message.register(process_discord, Registration.discord)
     dp.message.register(process_rank_mmr_text, StateFilter(Registration.rank_mmr, Registration.peak_rank_mmr))
     dp.message.register(process_tracker, Registration.tracker)
-    
+
     # admin panel
     dp.callback_query.register(admin_callback, F.data.startswith("adm:"))
     dp.message.register(admin_kick_id_handler, Admin.waiting_kick_id)
-    
+
     # self deletion
     dp.callback_query.register(delete_self_callback, F.data.startswith("delete_self:"))
-    
+
     # tournament management
     dp.callback_query.register(tournament_list, F.data == "tour:list")
     dp.callback_query.register(tournament_create_callback, F.data == "tour:create")
@@ -138,17 +139,17 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(tournament_create_date, Admin.waiting_tournament_date)
     dp.message.register(tournament_create_players, Admin.waiting_tournament_players)
     dp.message.register(tournament_create_prize, Admin.waiting_tournament_prize)
-    
+
     # welcome message management
     dp.callback_query.register(welcome_view, F.data == "wel:view")
     dp.callback_query.register(welcome_edit_callback, F.data == "wel:edit")
     dp.message.register(welcome_edit, Admin.waiting_welcome_message)
-    
+
     # notification management
     dp.callback_query.register(notification_create_tournament_select, F.data == "notif:create")
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
-    
+
     # admin management
     dp.callback_query.register(admin_add_callback, F.data == "admin:add")
     dp.callback_query.register(admin_remove_callback, F.data == "admin:remove")
@@ -198,3 +199,4 @@ async def welcome_edit_callback(callback: CallbackQuery, state: FSMContext):
 
 if __name__ == "__main__":
     asyncio.run(main())
+# Force Railway cache bust Tue Mar 31 22:00:48 MSK 2026

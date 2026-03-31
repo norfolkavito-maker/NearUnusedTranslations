@@ -716,7 +716,7 @@ async def admin_manage_id(msg: types.Message, state: FSMContext):
 async def admin_list(callback: CallbackQuery):
     try:
         # Принудительно создаем таблицу если нет
-        from db_turso import init_db
+        from db import init_db
         await init_db()
         
         admins = await get_all_admins()
