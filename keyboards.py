@@ -1,40 +1,79 @@
-# Updated RANK_MMR_TABLE dictionary
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+
+# Main keyboard definition
+
+
+async def kb_main():
+    # Define the main keyboard layout
+    pass
+
+
+async def kb_admin_main():
+    # Define the admin keyboard layout
+    pass
+
+
+TIERS = [
+    {'label': 'Bronze', 'mmr_range': (-100, 199)},
+    {'label': 'Silver', 'mmr_range': (200, 799)},
+    {'label': 'Gold', 'mmr_range': (800, 1399)},
+    {'label': 'Platinum', 'mmr_range': (1400, 1799)},
+    {'label': 'Diamond', 'mmr_range': (1800, 2199)},
+    {'label': 'Champion', 'mmr_range': (2200, 2599)},
+    {'label': 'Grand Champion', 'mmr_range': (2600, 2999)},
+    {'label': 'SSL', 'mmr_range': (3000, 1941)},
+]
+
+
 RANK_MMR_TABLE = {
-    # Bronze
-    (0,1,1): 235, (0,1,2): 250, (0,1,3): 267, (0,1,4): 284,
-    (0,2,1): 174, (0,2,2): 188, (0,2,3): 206, (0,2,4): 221,
-    (0,3,1): -100, (0,3,2): -88, (0,3,3): 139, (0,3,4): 165,
-
-    # Silver
-    (1,1,1): 295, (1,1,2): 312, (1,1,3): 327, (1,1,4): 343,
-    (1,2,1): 355, (1,2,2): 368, (1,2,3): 387, (1,2,4): 404,
-    (1,3,1): 414, (1,3,2): 427, (1,3,3): 447, (1,3,4): 461,
-
-    # Gold
-    (2,1,1): 476, (2,1,2): 488, (2,1,3): 507, (2,1,4): 521,
-    (2,2,1): 535, (2,2,2): 548, (2,2,3): 567, (2,2,4): 580,
-    (2,3,1): 595, (2,3,2): 607, (2,3,3): 627, (2,3,4): 640,
-
-    # Platinum
-    (3,1,1): 656, (3,1,2): 668, (3,1,3): 687, (3,1,4): 701,
-    (3,2,1): 716, (3,2,2): 728, (3,2,3): 747, (3,2,4): 760,
-    (3,3,1): 773, (3,3,2): 791, (3,3,3): 807, (3,3,4): 821,
-
-    # Diamond
-    (4,1,1): 839, (4,1,2): 856, (4,1,3): 880, (4,1,4): 896,
-    (4,2,1): 919, (4,2,2): 936, (4,2,3): 958, (4,2,4): 975,
-    (4,3,1): 995, (4,3,2): 1015, (4,3,3): 1039, (4,3,4): 1056,
-
-    # Champion
-    (5,1,1): 1084, (5,1,2): 1104, (5,1,3): 1141, (5,1,4): 1171,
-    (5,2,1): 1204, (5,2,2): 1231, (5,2,3): 1261, (5,2,4): 1291,
-    (5,3,1): 1324, (5,3,2): 1350, (5,3,3): 1380, (5,3,4): 1411,
-
-    # Grand Champion
-    (6,1,1): 1446, (6,1,2): 1477, (6,1,3): 1519, (6,1,4): 1560,
-    (6,2,1): 1587, (6,2,2): 1620, (6,2,3): 1642, (6,2,4): 1675,
-    (6,3,1): 1725, (6,3,2): 1760, (6,3,3): 1801, (6,3,4): 1845,
-
-    # SSL
-    (7,1,1): 1907,
+    'Bronze': (-100, 199),
+    'Silver': (200, 799),
+    'Gold': (800, 1399),
+    'Platinum': (1400, 1799),
+    'Diamond': (1800, 2199),
+    'Champion': (2200, 2599),
+    'Grand Champion': (2600, 2999),
+    'SSL': (3000, 1941),
 }
+
+
+def get_rank_label(mmr):
+    for tier in TIERS:
+        if tier['mmr_range'][0] <= mmr <= tier['mmr_range'][1]:
+            return tier['label']
+    return 'Unranked'
+
+
+def get_auto_mmr():
+    # Logic to automatically determine MMR
+    pass
+
+
+def kb_sub_check():
+    # Function to check subscription
+    pass
+
+
+def kb_admin_panel():
+    # Define the admin panel keyboard
+    pass
+
+
+def kb_deleteall_confirm():
+    # Confirmation for deleting all
+    pass
+
+
+def kb_tiers():
+    # Function returning available tiers
+    pass
+
+
+def kb_subtiers():
+    # Function returning subtier information
+    pass
+
+
+def kb_divisions():
+    # Function returning divisions
+    pass
