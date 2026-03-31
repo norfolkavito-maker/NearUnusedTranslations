@@ -10,7 +10,7 @@ from handlers import (
     process_epic_id, process_discord,
     on_tier, on_subtier, on_division,
     on_manual_mmr, on_back_to_tiers, on_back_to_subtiers,
-    process_rank_mmr_text, process_peak_rank_mmr_text, process_tracker,
+    process_rank_mmr_text, process_tracker,
     me_handler, admin_panel_handler, admin_callback, admin_kick_id_handler,
     delete_self_handler, delete_self_callback,
     tournament_create_name, tournament_create_description, tournament_create_date,
@@ -116,7 +116,6 @@ async def register_handlers(dp, bot):
     # registration steps
     dp.message.register(process_epic_id, Registration.epic_id)
     dp.message.register(process_discord, Registration.discord)
-    dp.callback_query.register(on_tier, StateFilter(Registration.rank, Registration.peak_rank))
     dp.message.register(process_rank_mmr_text, StateFilter(Registration.rank_mmr, Registration.peak_rank_mmr))
     dp.message.register(process_tracker, Registration.tracker)
 
