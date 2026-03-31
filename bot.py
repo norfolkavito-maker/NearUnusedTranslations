@@ -16,7 +16,7 @@ from handlers import (
     tournament_create_name, tournament_create_description, tournament_create_date,
     tournament_create_players, tournament_create_prize, tournament_list,
     welcome_edit, welcome_view,
-    notification_create_tournament_select, notification_create_message, notification_create_time,
+    notification_create_tournament_select, notification_tournament_selected, notification_create_message, notification_create_time,
     admin_list, admin_manage_id,
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
@@ -135,6 +135,7 @@ def register_handlers(dp: Dispatcher):
     
     # notification management
     dp.callback_query.register(notification_create_tournament_select, F.data == "notif:create")
+    dp.callback_query.register(notification_tournament_selected, F.data.startswith("notif:tour:"))
     dp.callback_query.register(pending_notifications_callback, F.data == "notif:list")
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
@@ -179,7 +180,26 @@ async def tournament_notifications_callback(callback: CallbackQuery):
 
 # Pending notifications list callback
 async def pending_notifications_callback(callback: CallbackQuery):
-    await callback.answer("📋 Функция списка отложенных рассылок в разработке")
+    from db import get_pending_notifications
+    notifications = await get_pending_notifications()
+    
+    if not notifications:
+        await callback.message.edit_text(
+            "📋 <b>Отложенные рассылки:</b>\n\nНет запланированных рассылок",
+            reply_markup=kb_admin_panel,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        return
+    
+    text = "📋 <b>Отложенные рассылки:</b>\n\n"
+    for notif in notifications:
+        text += f"🏆 Турнир ID: {notif['tournament_id']}\n"
+        text += f"⏰ Время: {notif['send_time']}\n"
+        text += f"📝 Сообщение: {notif['message'][:50]}...\n\n"
+    
+    await callback.message.edit_text(text, reply_markup=kb_admin_panel, parse_mode="HTML")
+    await callback.answer()
 
 async def channel_edit_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()

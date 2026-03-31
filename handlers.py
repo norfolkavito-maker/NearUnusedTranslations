@@ -659,6 +659,16 @@ async def notification_create_tournament_select(callback: CallbackQuery, state: 
     )
     await callback.answer()
 
+async def notification_tournament_selected(callback: CallbackQuery, state: FSMContext):
+    tournament_id = int(callback.data.split(":")[2])
+    await state.update_data(tournament_id=tournament_id)
+    await callback.answer()
+    await state.set_state(Admin.waiting_notification_message)
+    await callback.message.answer(
+        "📝 Введи текст сообщения для рассылки:",
+        reply_markup=kb_admin_panel
+    )
+
 async def notification_create_message(msg: types.Message, state: FSMContext):
     await state.update_data(notification_message=msg.text)
     await msg.answer("⏰ Введи время отправки (формат: YYYY-MM-DD HH:MM):")
