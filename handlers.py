@@ -646,38 +646,6 @@ async def notification_create_time(msg: types.Message, state: FSMContext):
 
 
 # ── Admin Management ─────────────────────────────────────────────────────────────
-async def admin_add_id(msg: types.Message, state: FSMContext):
-    try:
-        admin_id = int(msg.text.strip())
-        username = msg.from_user.username or ""
-        
-        await add_admin(admin_id, username, msg.from_user.id)
-        await state.clear()
-        await msg.answer(
-            f"✅ Пользователь <code>{admin_id}</code> добавлен в админы!",
-            reply_markup=kb_admin_panel
-        )
-    except ValueError:
-        await msg.answer("⚠️ Введи корректный числовой ID пользователя")
-
-async def admin_remove_id(msg: types.Message, state: FSMContext):
-    try:
-        admin_id = int(msg.text.strip())
-        
-        # Don't allow removing self
-        if admin_id == msg.from_user.id:
-            await msg.answer("⚠️ Нельзя удалить самого себя из админов")
-            return
-        
-        await remove_admin(admin_id)
-        await state.clear()
-        await msg.answer(
-            f"✅ Пользователь <code>{admin_id}</code> удален из админов!",
-            reply_markup=kb_admin_panel
-        )
-    except ValueError:
-        await msg.answer("⚠️ Введи корректный числовой ID пользователя")
-
 async def admin_manage_id(msg: types.Message, state: FSMContext):
     data = await state.get_data()
     action = data.get("admin_action", "add")

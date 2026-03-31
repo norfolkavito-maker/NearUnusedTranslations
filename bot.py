@@ -17,7 +17,7 @@ from handlers import (
     tournament_create_players, tournament_create_prize, tournament_list,
     welcome_edit, welcome_view,
     notification_create_tournament_select, notification_create_message, notification_create_time,
-    admin_add_id, admin_remove_id, admin_list, admin_manage_id,
+    admin_list, admin_manage_id,
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
 )
