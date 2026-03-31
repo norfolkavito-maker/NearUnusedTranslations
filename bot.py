@@ -21,7 +21,7 @@ from handlers import (
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
 )
-from db_turso import init_db
+from db import init_db
 from config import TOKEN
 from states import Registration, Admin
 from web import start_web

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from aiogram import Bot
-from db_turso import get_all_users, get_pending_notifications, mark_notification_sent
+from db import get_all_users, get_pending_notifications, mark_notification_sent
 
 
 async def check_notifications(bot: Bot):

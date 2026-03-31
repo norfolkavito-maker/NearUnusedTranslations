@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, StateFilter
 from aiogram.types import CallbackQuery
 
-from db_turso import (
+from db import (
     add_user, check_user, get_user, get_all_users, delete_user, delete_all_users, count_users,
     add_admin, remove_admin, get_all_admins, is_admin_db,
     update_channel_settings, get_channel_settings,
