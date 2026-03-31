@@ -682,6 +682,8 @@ async def admin_manage_id(msg: types.Message, state: FSMContext):
     data = await state.get_data()
     action = data.get("admin_action", "add")
     
+    print(f"DEBUG: admin_manage_id called with action: {action}, data: {data}")
+    
     try:
         admin_id = int(msg.text.strip())
         
@@ -707,11 +709,14 @@ async def admin_manage_id(msg: types.Message, state: FSMContext):
             )
     except ValueError:
         await msg.answer("⚠️ Введи корректный числовой ID пользователя")
+    except Exception as e:
+        print(f"ERROR in admin_manage_id: {e}")
+        await msg.answer("⚠️ Произошла ошибка при обработке")
 
 async def admin_list(callback: CallbackQuery):
     try:
         # Принудительно создаем таблицу если нет
-        from db import init_db
+        from db_turso import init_db
         await init_db()
         
         admins = await get_all_admins()

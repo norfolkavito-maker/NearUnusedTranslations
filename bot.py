@@ -168,13 +168,13 @@ async def register_handlers(dp, bot):
 # Admin management callbacks
 async def admin_add_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.update_data(admin_action="add")
     await state.set_state(Admin.waiting_admin_id)
+    await state.update_data(admin_action="add")
 
 async def admin_remove_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.update_data(admin_action="remove")
     await state.set_state(Admin.waiting_admin_id)
+    await state.update_data(admin_action="remove")
 
 async def channel_edit_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
