@@ -121,6 +121,7 @@ def register_handlers(dp: Dispatcher):
     # tournament management
     dp.callback_query.register(tournament_list, F.data == "tour:list")
     dp.callback_query.register(tournament_create_callback, F.data == "tour:create")
+    dp.callback_query.register(tournament_notifications_callback, F.data == "tour:notifications")
     dp.message.register(tournament_create_name, Admin.waiting_tournament_name)
     dp.message.register(tournament_create_description, Admin.waiting_tournament_description)
     dp.message.register(tournament_create_date, Admin.waiting_tournament_date)
@@ -134,6 +135,7 @@ def register_handlers(dp: Dispatcher):
     
     # notification management
     dp.callback_query.register(notification_create_tournament_select, F.data == "notif:create")
+    dp.callback_query.register(pending_notifications_callback, F.data == "notif:list")
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
     
@@ -170,6 +172,14 @@ async def admin_remove_callback(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Admin.waiting_admin_id)
     await state.update_data(admin_action="remove")
     await callback.message.answer("📝 Введите ID пользователя для удаления из админов:")
+
+# Tournament notifications callback
+async def tournament_notifications_callback(callback: CallbackQuery):
+    await callback.answer("🔔 Функция уведомлений турниров в разработке")
+
+# Pending notifications list callback
+async def pending_notifications_callback(callback: CallbackQuery):
+    await callback.answer("📋 Функция списка отложенных рассылок в разработке")
 
 async def channel_edit_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
