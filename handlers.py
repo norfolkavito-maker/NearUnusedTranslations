@@ -397,6 +397,39 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         )
         await callback.answer()
 
+    elif action == "players":
+        users = await get_all_users()
+        if not users:
+            await callback.message.edit_text("👥 <b>Зарегистрированных игроков пока нет</b>", reply_markup=kb_admin_panel, parse_mode="HTML")
+            await callback.answer()
+            return
+        
+        # Создаем красивый список
+        text = f"👥 <b>Зарегистрированные игроки ({len(users)}):</b>\n\n"
+        
+        for i, user in enumerate(users, 1):
+            username = user.get('username', 'Без username')
+            epic = user.get('epic', 'Не указан')
+            discord = user.get('discord', 'Не указан')
+            rank = user.get('rank', 'Не указан')
+            peak_rank = user.get('peak_rank', 'Не указан')
+            tracker = user.get('tracker', 'Не указан')
+            
+            text += f"🎮 <b>{i}. @{username}</b> (<code>{user['tg_id']}</code>)\n"
+            text += f"   🎯 Epic: <b>{epic}</b>\n"
+            text += f"   💬 Discord: <b>{discord}</b>\n"
+            text += f"   🏆 Ранг: <b>{rank}</b> | Пик: <b>{peak_rank}</b>\n"
+            text += f"   📊 Tracker: <b>{tracker}</b>\n\n"
+        
+        # Разбиваем на части если слишком длинное сообщение
+        for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+            try:
+                await callback.message.edit_text(chunk, parse_mode="HTML")
+            except:
+                await callback.message.answer(chunk, parse_mode="HTML")
+        
+        await callback.answer()
+
     elif action == "admins":
         await callback.message.edit_text(
             "👥 <b>Управление админами:</b>",

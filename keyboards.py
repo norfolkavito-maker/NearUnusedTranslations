@@ -105,7 +105,8 @@ def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarku
 
 kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="📋 Список участников", callback_data="adm:list")],
-    [InlineKeyboardButton(text="📊 Статистика",        callback_data="adm:stats")],
+    [InlineKeyboardButton(text="� Удобный список игроков", callback_data="adm:players")],
+    [InlineKeyboardButton(text="�📊 Статистика",        callback_data="adm:stats")],
     [InlineKeyboardButton(text="👥 Управление админами", callback_data="adm:admins")],
     [InlineKeyboardButton(text="📢 Настройки канала", callback_data="adm:channel")],
     [InlineKeyboardButton(text="🏆 Управление турнирами", callback_data="adm:tournaments")],
