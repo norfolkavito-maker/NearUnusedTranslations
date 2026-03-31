@@ -48,16 +48,6 @@ async def init_db():
             )
             """)
             
-            # Moderators table - НОВОЕ!
-            await db.execute("""
-            CREATE TABLE IF NOT EXISTS moderators (
-                tg_id INTEGER PRIMARY KEY,
-                username TEXT,
-                added_by INTEGER,
-                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-            
             # Channel settings table
             await db.execute("""
             CREATE TABLE IF NOT EXISTS channel_settings (
@@ -105,6 +95,13 @@ async def init_db():
                 FOREIGN KEY (tournament_id) REFERENCES tournaments (id)
             )
             """)
+            
+            # Add missing columns to users table
+            for col in ("username", "tracker"):
+                try:
+                    await db.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+                except Exception:
+                    pass
             
             await db.commit()
             print("✅ База данных инициализирована")
@@ -195,7 +192,7 @@ async def add_admin(tg_id: int, username: str = "", added_by: int = None):
                 (tg_id, username, added_by)
             )
             await db.commit()
-            print(f"✅ Админ {tg_id} добавлен с username: {username}")
+            print(f"✅ Админ {tg_id} добавлен")
     except Exception as e:
         print(f"❌ Ошибка добавления админа: {e}")
 
@@ -228,53 +225,6 @@ async def is_admin_db(tg_id: int):
     except Exception as e:
         print(f"❌ Ошибка проверки админа: {e}")
         return False
-
-# ── Moderator Management ─────────────────────────────────────────────────────────────
-async def add_moderator(tg_id: int, username: str = "", added_by: int = None):
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "INSERT OR REPLACE INTO moderators (tg_id, username, added_by) VALUES (?, ?, ?)",
-                (tg_id, username, added_by)
-            )
-            await db.commit()
-            print(f"✅ Модератор {tg_id} добавлен с username: {username}")
-    except Exception as e:
-        print(f"❌ Ошибка добавления модератора: {e}")
-
-async def remove_moderator(tg_id: int):
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("DELETE FROM moderators WHERE tg_id = ?", (tg_id,))
-            await db.commit()
-            print(f"✅ Модератор {tg_id} удален")
-    except Exception as e:
-        print(f"❌ Ошибка удаления модератора: {e}")
-
-async def get_all_moderators():
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT * FROM moderators ORDER BY added_at") as cur:
-                rows = await cur.fetchall()
-                return [dict(row) for row in rows]
-    except Exception as e:
-        print(f"❌ Ошибка получения модераторов: {e}")
-        return []
-
-async def is_moderator(tg_id: int):
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            async with db.execute("SELECT tg_id FROM moderators WHERE tg_id = ?", (tg_id,)) as cur:
-                row = await cur.fetchone()
-                return row is not None
-    except Exception as e:
-        print(f"❌ Ошибка проверки модератора: {e}")
-        return False
-
-async def is_admin_or_moderator(tg_id: int):
-    """Проверяет является ли пользователь админом или модератором"""
-    return await is_admin_db(tg_id) or await is_moderator(tg_id)
 
 # ── Channel Settings Management ───────────────────────────────────────────────────
 async def update_channel_settings(channel_link: str = None, discord_link: str = None, require_subscription: bool = None):
@@ -309,4 +259,142 @@ async def get_channel_settings():
         print(f"❌ Ошибка получения настроек канала: {e}")
         return {"channel_link": "", "discord_link": "", "require_subscription": False}
 
-# Остальные функции (турниры, сообщения, уведомления) остаются без изменений...
+# ── Tournament Management ───────────────────────────────────────────────────────
+async def add_tournament(name, description="", date_time="", max_players=None, prize=""):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "INSERT INTO tournaments (name, description, date_time, max_players, prize) VALUES (?, ?, ?, ?, ?)",
+                (name, description, date_time, max_players, prize)
+            )
+            await db.commit()
+            print(f"✅ Турнир '{name}' добавлен")
+    except Exception as e:
+        print(f"❌ Ошибка добавления турнира: {e}")
+
+async def get_all_tournaments():
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM tournaments ORDER BY created_at DESC") as cur:
+                rows = await cur.fetchall()
+                return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"❌ Ошибка получения турниров: {e}")
+        return []
+
+async def get_tournament(tournament_id):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM tournaments WHERE id = ?", (tournament_id,)) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+    except Exception as e:
+        print(f"❌ Ошибка получения турнира: {e}")
+        return None
+
+async def update_tournament(tournament_id, name=None, description=None, date_time=None, max_players=None, prize=None, status=None):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            updates = []
+            values = []
+            if name is not None:
+                updates.append("name = ?")
+                values.append(name)
+            if description is not None:
+                updates.append("description = ?")
+                values.append(description)
+            if date_time is not None:
+                updates.append("date_time = ?")
+                values.append(date_time)
+            if max_players is not None:
+                updates.append("max_players = ?")
+                values.append(max_players)
+            if prize is not None:
+                updates.append("prize = ?")
+                values.append(prize)
+            if status is not None:
+                updates.append("status = ?")
+                values.append(status)
+            
+            values.append(tournament_id)
+            await db.execute(f"UPDATE tournaments SET {', '.join(updates)} WHERE id = ?", values)
+            await db.commit()
+            print(f"✅ Турнир {tournament_id} обновлен")
+    except Exception as e:
+        print(f"❌ Ошибка обновления турнира: {e}")
+
+async def delete_tournament(tournament_id):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+            await db.commit()
+            print(f"✅ Турнир {tournament_id} удален")
+    except Exception as e:
+        print(f"❌ Ошибка удаления турнира: {e}")
+
+# ── Welcome Message Management ───────────────────────────────────────────────────
+async def add_welcome_message(message):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("INSERT INTO welcome_messages (message) VALUES (?)", (message,))
+            await db.commit()
+            print("✅ Приветственное сообщение добавлено")
+    except Exception as e:
+        print(f"❌ Ошибка добавления приветственного сообщения: {e}")
+
+async def get_active_welcome_message():
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            async with db.execute("SELECT message FROM welcome_messages WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1") as cur:
+                row = await cur.fetchone()
+                return row["message"] if row else None
+    except Exception as e:
+        print(f"❌ Ошибка получения приветственного сообщения: {e}")
+        return None
+
+async def update_welcome_message(message):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            # Deactivate all messages
+            await db.execute("UPDATE welcome_messages SET is_active = 0")
+            # Add new message
+            await db.execute("INSERT INTO welcome_messages (message, is_active) VALUES (?, 1)", (message,))
+            await db.commit()
+            print("✅ Приветственное сообщение обновлено")
+    except Exception as e:
+        print(f"❌ Ошибка обновления приветственного сообщения: {e}")
+
+# ── Notification Management ───────────────────────────────────────────────────────
+async def add_tournament_notification(tournament_id, message, send_time):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "INSERT INTO tournament_notifications (tournament_id, message, send_time) VALUES (?, ?, ?)",
+                (tournament_id, message, send_time)
+            )
+            await db.commit()
+            print(f"✅ Уведомление для турнира {tournament_id} добавлено")
+    except Exception as e:
+        print(f"❌ Ошибка добавления уведомления: {e}")
+
+async def get_pending_notifications():
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM tournament_notifications WHERE is_sent = 0 ORDER BY send_time") as cur:
+                rows = await cur.fetchall()
+                return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"❌ Ошибка получения ожидающих уведомлений: {e}")
+        return []
+
+async def mark_notification_sent(notification_id):
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("UPDATE tournament_notifications SET is_sent = 1 WHERE id = ?", (notification_id,))
+            await db.commit()
+            print(f"✅ Уведомление {notification_id} отмечено как отправленное")
+    except Exception as e:
+        print(f"❌ Ошибка отметки уведомления: {e}")
