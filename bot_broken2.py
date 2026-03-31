@@ -4,6 +4,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramConflictError
 
 from handlers import (
     start_handler, registration_handler, sub_check_callback,
@@ -21,7 +22,7 @@ from handlers import (
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
 )
-from db import init_db, add_admin
+from db import init_db
 from config import TOKEN
 from states import Registration, Admin
 from web import start_web
@@ -33,12 +34,14 @@ RANK_STATES = StateFilter(Registration.rank, Registration.peak_rank)
 async def main():
     print("🚀 Запуск бота...")
     
+    # Проверка TOKEN
     if not TOKEN:
         print("❌ TOKEN не установлен!")
         return
     
     print(f"🔑 TOKEN установлен (длина: {len(TOKEN)})")
     
+    # Инициализация
     storage = MemoryStorage()
     bot = Bot(token=TOKEN)
     dp = Dispatcher(storage=storage)
@@ -53,6 +56,7 @@ async def main():
     
     print("✅ Dispatcher создан")
     
+    # Инициализация БД
     try:
         await init_db()
         print("✅ База данных инициализирована")
@@ -60,15 +64,19 @@ async def main():
         print(f"❌ Ошибка инициализации БД: {e}")
         return
     
+    # Регистрация обработчиков
     register_handlers(dp)
     print("✅ Обработчики зарегистрированы")
     
+    # Запуск веб-сервера
     asyncio.create_task(start_web())
     print("🌐 Веб-панель запущена на порту 5000")
     
+    # Запуск планировщика
     asyncio.create_task(scheduler_task(bot))
     print("✅ Планировщик запущен")
     
+    # Запуск бота с обработкой конфликтов
     print("🚀 Бот запущен, начинаем polling...")
     try:
         await dp.start_polling(
@@ -76,6 +84,11 @@ async def main():
             allowed_updates=["message", "callback_query"],
             close_bot_session=False
         )
+    except TelegramConflictError as e:
+        print(f"⚠️ Конфликт ботов: {e}")
+        print("🔄 Перезапуск через 5 секунд...")
+        await asyncio.sleep(5)
+        await main()
     except Exception as e:
         print(f"❌ Критическая ошибка: {e}")
         import traceback
@@ -136,7 +149,7 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
     
-    # admin management - ИСПРАВЛЕНО!
+    # admin management
     dp.callback_query.register(admin_add_callback, F.data == "admin:add")
     dp.callback_query.register(admin_remove_callback, F.data == "admin:remove")
     dp.callback_query.register(admin_list, F.data == "admin:list")
@@ -155,20 +168,16 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(discord_handler, F.text == "🎮 Discord")
 
 
-# Admin management callbacks - ИСПРАВЛЕНО!
+# Admin management callbacks
 async def admin_add_callback(callback: CallbackQuery, state: FSMContext):
-    print(f"🎯 Кнопка 'Добавить админа' нажата!")
     await callback.answer()
     await state.set_state(Admin.waiting_admin_id)
     await state.update_data(admin_action="add")
-    await callback.message.answer("📝 Введите ID пользователя для добавления в админы:")
 
 async def admin_remove_callback(callback: CallbackQuery, state: FSMContext):
-    print(f"🎯 Кнопка 'Удалить админа' нажата!")
     await callback.answer()
     await state.set_state(Admin.waiting_admin_id)
     await state.update_data(admin_action="remove")
-    await callback.message.answer("📝 Введите ID пользователя для удаления из админов:")
 
 async def channel_edit_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
