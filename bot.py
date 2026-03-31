@@ -74,7 +74,8 @@ async def main():
         await dp.start_polling(
             bot,
             allowed_updates=["message", "callback_query"],
-            close_bot_session=False
+            close_bot_session=False,
+            drop_pending_updates=True  # Сбросить старые обновления
         )
     except Exception as e:
         print(f"❌ Критическая ошибка: {e}")
