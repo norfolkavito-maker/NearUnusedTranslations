@@ -13,7 +13,7 @@ from handlers import (
     process_epic_id, process_discord,
     on_tier, on_subtier, on_division,
     on_manual_mmr, on_back_to_tiers, on_back_to_subtiers,
-    process_rank_mmr_text, process_peak_rank_mmr_text, process_tracker,
+    process_mmr_text, process_tracker,
     me_handler, admin_panel_handler, admin_callback, admin_kick_id_handler,
 )
 from db import init_db
@@ -46,8 +46,8 @@ async def main():
     # registration flow
     dp.message.register(process_epic_id,           Registration.epic_id)
     dp.message.register(process_discord,           Registration.discord)
-    dp.message.register(process_rank_mmr_text,      Registration.rank_mmr)
-    dp.message.register(process_peak_rank_mmr_text, Registration.peak_rank_mmr)
+    dp.message.register(process_mmr_text, Registration.rank_mmr)
+    dp.message.register(process_mmr_text, Registration.peak_rank_mmr)
     dp.message.register(process_tracker,            Registration.tracker)
 
     # rank selection callbacks
