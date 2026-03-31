@@ -30,7 +30,7 @@ TIERS = [
     ("🟦 Платина", "Платина", "655–825"),
     ("💎 Даймонд", "Даймонд", "835–1060"),
     ("🏆 Чемпион", "Чемпион", "1075–1420"),
-    ("👑 Гранд-Чемпион", "Гранд-Чемпион", "1435–1859"),
+    ("👑 ГЧ", "Гранд-Чемпион", "1435–1859"),
     ("⚡ SSL", "SSL", "1873–1941"),
 ]
 
@@ -71,12 +71,30 @@ RANK_MMR_TABLE = {
 }
 
 def get_rank_label(tier_idx: int, sub: int, div: int) -> str:
-    tier_names = ["Бронза", "Серебро", "Золото", "Платина", "Даймонд", "Чемпион", "Гранд-Чемпион", "SSL"]
+    tier_names = ["Бронза", "Серебро", "Золото", "Платина", "Даймонд", "Чемпион", "ГЧ", "SSL"]
     tier_name = tier_names[tier_idx] if tier_idx < len(tier_names) else "Unknown"
+    if tier_idx == 6:  # Grand Champion
+        return f"ГЧ{sub}"
     return f"{tier_name} {sub} / Дивизион {div}"
 
 def get_auto_mmr(tier_idx: int, sub: int, div: int) -> int:
     return RANK_MMR_TABLE.get((tier_idx, sub, div), 0)
+
+def get_mmr_range(tier_idx: int, sub: int, div: int) -> str:
+    """Возвращает MMR диапазон для ранга"""
+    mmr = get_auto_mmr(tier_idx, sub, div)
+    
+    # Определяем диапазон на основе позиции в таблице
+    if tier_idx == 6:  # Grand Champion
+        ranges = {
+            (6,1,1): "1435-1460", (6,1,2): "1460-1500", (6,1,3): "1500-1537", (6,1,4): "1537-1575",
+            (6,2,1): "1575-1602", (6,2,2): "1602-1647", (6,2,3): "1647-1677", (6,2,4): "1677-1714",
+            (6,3,1): "1714-1745", (6,3,2): "1745-1788", (6,3,3): "1788-1832", (6,3,4): "1832-1873"
+        }
+        return ranges.get((tier_idx, sub, div), "1435-1873")
+    else:
+        # Для остальных рангов определяем диапазон +-15 MMR
+        return f"{mmr-15}-{mmr+15}"
 
 def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarkup:
     buttons = [[InlineKeyboardButton(text="📢 Подписаться на канал", url=channel_link)]]
