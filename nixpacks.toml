@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.build]
+nixPkgs = ["python311"]
+
+[start]
+cmd = "python bot.py"
+
+[healthcheck]
+path = "/health"
+port = 5000
