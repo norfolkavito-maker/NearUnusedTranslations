@@ -88,17 +88,13 @@ kb_deleteall_confirm = InlineKeyboardMarkup(inline_keyboard=[[
 
 
 def kb_tiers(prefix: str) -> InlineKeyboardMarkup:
-    buttons = []
-    for i, (label, name, mmr_range) in enumerate(TIERS):
-        buttons.append([InlineKeyboardButton(
-            text=f"{label}  •  {mmr_range} MMR",
-            callback_data=f"rt:{prefix}:{i}"
-        )])
-    buttons.append([InlineKeyboardButton(
-        text="✏️ Ввести MMR вручную",
-        callback_data=f"rm:{prefix}"
-    )])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *[
+            [InlineKeyboardButton(text=f"{label}  •  {mmr_range} MMR", callback_data=f"rt:{prefix}:{i}")]
+            for i, (label, _, mmr_range) in enumerate(TIERS)
+        ],
+        [InlineKeyboardButton(text="✏️ Ввести MMR вручную", callback_data=f"rm:{prefix}")],
+    ])
 
 
 def kb_subtiers(prefix: str, tier_idx: int) -> InlineKeyboardMarkup:
@@ -114,12 +110,13 @@ def kb_subtiers(prefix: str, tier_idx: int) -> InlineKeyboardMarkup:
 
 
 def kb_divisions(prefix: str, tier_idx: int, sub: int) -> InlineKeyboardMarkup:
-    buttons = []
-    for d in range(1, 5):
-        mmr = RANK_MMR_TABLE.get((tier_idx, sub, d), "?")
-        buttons.append([InlineKeyboardButton(
-            text=f"Дивизион {d}  •  {mmr} MMR",
-            callback_data=f"rd:{prefix}:{tier_idx}:{sub}:{d}"
-        )])
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=f"rsb:{prefix}:{tier_idx}")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *[
+            [InlineKeyboardButton(
+                text=f"Дивизион {d}  •  {RANK_MMR_TABLE.get((tier_idx, sub, d), '?')} MMR",
+                callback_data=f"rd:{prefix}:{tier_idx}:{sub}:{d}"
+            )]
+            for d in range(1, 5)
+        ],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data=f"rsb:{prefix}:{tier_idx}")],
+    ])

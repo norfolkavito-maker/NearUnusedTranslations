@@ -2,7 +2,7 @@ import logging
 
 from aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 
 logger = logging.getLogger(__name__)
@@ -21,17 +21,13 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
-def _main_kb(user_id: int):
-    return kb_admin_main if is_admin(user_id) else kb_main
-
-
 # ── /start ───────────────────────────────────────────────────────────────────
 async def start_handler(msg: types.Message):
     logger.info("Received /start from %s", msg.from_user.id)
     await msg.answer(
         "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
         "Команда <b>📋 Мои данные</b> покажет твою анкету.",
-        reply_markup=_main_kb(msg.from_user.id),
+        reply_markup=kb_admin_main if is_admin(msg.from_user.id) else kb_main,
         parse_mode="HTML"
     )
 
@@ -205,7 +201,7 @@ async def on_back_to_subtiers(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-async def process_rank_mmr_text(msg: types.Message, state: FSMContext):
+async def process_mmr_text(msg: types.Message, state: FSMContext):
     try:
         mmr = int(msg.text.strip())
         if not 0 <= mmr <= 10000:
@@ -213,31 +209,24 @@ async def process_rank_mmr_text(msg: types.Message, state: FSMContext):
     except ValueError:
         await msg.answer("⚠️ Введи корректное число MMR, например: 1450")
         return
-    await state.update_data(rank=f"MMR: {mmr}")
-    await msg.answer(
-        f"✅ Актуальный MMR: <b>{mmr}</b>\n\n4️⃣ Теперь выбери свой <b>пиковый MMR</b>:",
-        reply_markup=kb_tiers("p"),
-        parse_mode="HTML"
-    )
-    await state.set_state(Registration.peak_rank)
-
-
-async def process_peak_rank_mmr_text(msg: types.Message, state: FSMContext):
-    try:
-        mmr = int(msg.text.strip())
-        if not 0 <= mmr <= 10000:
-            raise ValueError
-    except ValueError:
-        await msg.answer("⚠️ Введи корректное число MMR, например: 2700")
-        return
-    await state.update_data(peak_rank=f"MMR: {mmr}")
-    await msg.answer(
-        f"✅ Пиковый MMR: <b>{mmr}</b>\n\n"
-        f"5️⃣ Вставь ссылку на свой <b>RL Tracker</b>:\n"
-        f"<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
-        parse_mode="HTML"
-    )
-    await state.set_state(Registration.tracker)
+    is_rank = (await state.get_state()) == Registration.rank_mmr
+    if is_rank:
+        await state.update_data(rank=f"MMR: {mmr}")
+        await msg.answer(
+            f"✅ Актуальный MMR: <b>{mmr}</b>\n\n4️⃣ Теперь выбери свой <b>пиковый MMR</b>:",
+            reply_markup=kb_tiers("p"),
+            parse_mode="HTML"
+        )
+        await state.set_state(Registration.peak_rank)
+    else:
+        await state.update_data(peak_rank=f"MMR: {mmr}")
+        await msg.answer(
+            f"✅ Пиковый MMR: <b>{mmr}</b>\n\n"
+            f"5️⃣ Вставь ссылку на свой <b>RL Tracker</b>:\n"
+            f"<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
+            parse_mode="HTML"
+        )
+        await state.set_state(Registration.tracker)
 
 
 async def process_tracker(msg: types.Message, state: FSMContext):
@@ -252,7 +241,7 @@ async def process_tracker(msg: types.Message, state: FSMContext):
     await state.update_data(tracker=url)
     data = await state.get_data()
     tg_id = msg.from_user.id
-    username = _get_username(msg.from_user)
+    username = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.full_name
     await add_user(
         tg_id=tg_id, username=username,
         epic=data.get("epic", ""), discord=data.get("discord", ""),
@@ -267,38 +256,25 @@ async def process_tracker(msg: types.Message, state: FSMContext):
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
-def _get_username(user) -> str:
-    return f"@{user.username}" if user.username else user.full_name
-
-
-async def _save_and_finish(callback: CallbackQuery, state: FSMContext, peak_rank: str):
+async def _save_and_finish(obj, state: FSMContext, peak_rank: str):
+    """Works with both Message and CallbackQuery via duck typing."""
+    user = obj.from_user
     data = await state.get_data()
     await add_user(
-        tg_id=callback.from_user.id, username=_get_username(callback.from_user),
+        tg_id=user.id,
+        username=f"@{user.username}" if user.username else user.full_name,
         epic=data.get("epic", ""), discord=data.get("discord", ""),
         rank=data.get("rank", ""), peak_rank=peak_rank
     )
     await state.clear()
-    await callback.message.edit_text(
+    text = (
         f"✅ Пиковый MMR: <b>{peak_rank}</b>\n\n"
-        f"🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира.",
-        parse_mode="HTML"
+        f"🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира."
     )
-
-
-async def _save_and_finish_msg(msg: types.Message, state: FSMContext, peak_rank: str):
-    data = await state.get_data()
-    await add_user(
-        tg_id=msg.from_user.id, username=_get_username(msg.from_user),
-        epic=data.get("epic", ""), discord=data.get("discord", ""),
-        rank=data.get("rank", ""), peak_rank=peak_rank
-    )
-    await state.clear()
-    await msg.answer(
-        f"✅ Пиковый MMR: <b>{peak_rank}</b>\n\n"
-        f"🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира.",
-        parse_mode="HTML"
-    )
+    if isinstance(obj, types.Message):
+        await obj.answer(text, parse_mode="HTML")
+    else:
+        await obj.message.edit_text(text, parse_mode="HTML")
 
 
 # ── /me ──────────────────────────────────────────────────────────────────────
@@ -421,4 +397,4 @@ async def admin_kick_id_handler(msg: types.Message, state: FSMContext):
     await delete_user(tg_id)
     await state.clear()
     await msg.answer(f"✅ Пользователь <code>{tg_id}</code> удалён.", parse_mode="HTML",
-                     reply_markup=_main_kb(msg.from_user.id))
+                     reply_markup=kb_admin_main if is_admin(msg.from_user.id) else kb_main)
