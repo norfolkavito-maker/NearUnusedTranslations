@@ -32,21 +32,20 @@ from keyboards import (
 from config import CHANNEL_ID, CHANNEL_LINK, GROUP_LINK, ADMIN_IDS
 
 
-def is_admin(user_id: int) -> bool:
-    # Check config admins first
+async def is_admin(user_id: int) -> bool:
+    """Проверка прав админа (config + БД)"""
     if user_id in ADMIN_IDS:
         return True
-    # Check database admins
-    return is_admin_db(user_id)
+    return await is_admin_db(user_id)
 
 
-def _main_kb(user_id: int):
-    return kb_admin_main if is_admin(user_id) else kb_main
+async def _main_kb(user_id: int):
+    is_adm = await is_admin(user_id)
+    return kb_admin_main if is_adm else kb_main
 
 
 # ── /start ───────────────────────────────────────────────────────────────────
 async def start_handler(msg: types.Message):
-    # Get custom welcome message
     welcome = await get_active_welcome_message()
     welcome_text = welcome["message"] if welcome else (
         "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
@@ -55,7 +54,7 @@ async def start_handler(msg: types.Message):
     
     await msg.answer(
         welcome_text,
-        reply_markup=_main_kb(msg.from_user.id),
+        reply_markup=await _main_kb(msg.from_user.id),
         parse_mode="HTML"
     )
 
@@ -463,7 +462,7 @@ async def my_data_edit_handler(msg: types.Message, state: FSMContext):
 
 # ── Админ-панель ─────────────────────────────────────────────────────────────
 async def admin_panel_handler(msg: types.Message):
-    if not is_admin(msg.from_user.id):
+    if not await is_admin(msg.from_user.id):
         return
     count = await count_users()
     await msg.answer(
@@ -474,7 +473,7 @@ async def admin_panel_handler(msg: types.Message):
 
 
 async def admin_callback(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    if not await is_admin(callback.from_user.id):
         await callback.answer("Нет доступа.", show_alert=True)
         return
 
@@ -739,7 +738,7 @@ async def post_reg_message_edit(msg: types.Message, state: FSMContext):
 
 
 async def admin_kick_id_handler(msg: types.Message, state: FSMContext):
-    if not is_admin(msg.from_user.id):
+    if not await is_admin(msg.from_user.id):
         await state.clear()
         return
     try:
@@ -756,7 +755,7 @@ async def admin_kick_id_handler(msg: types.Message, state: FSMContext):
     await delete_user(tg_id)
     await state.clear()
     await msg.answer(f"✅ Пользователь <code>{tg_id}</code> удалён.", parse_mode="HTML",
-                     reply_markup=_main_kb(msg.from_user.id))
+                     reply_markup=await _main_kb(msg.from_user.id))
 
 
 # ── Удаление своих данных ───────────────────────────────────────────────────────
@@ -1170,7 +1169,7 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
         
         await msg.answer(
             f"✅ Ваше сообщение отправлено {success_count} администраторам!",
-            reply_markup=_main_kb(msg.from_user.id)
+            reply_markup=await _main_kb(msg.from_user.id)
         )
     except Exception as e:
         print(f"Error in contact_admins_message_handler: {e}")
@@ -1179,7 +1178,6 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
 
 # ── Discord Handler ───────────────────────────────────────────────────────────────
 async def discord_handler(msg: types.Message):
-    # Get Discord link from channel settings or use default
     settings = await get_channel_settings()
     if settings:
         discord_link = settings.get("discord_link", "https://discord.gg/your-server")
@@ -1190,7 +1188,7 @@ async def discord_handler(msg: types.Message):
         f"🎮 <b>Наш Discord сервер:</b>\n\n"
         f"🔗 {discord_link}\n\n"
         f"Присоединяйтесь к сообществу!",
-        reply_markup=_main_kb(msg.from_user.id),
+        reply_markup=await _main_kb(msg.from_user.id),
         parse_mode="HTML"
     )
 
