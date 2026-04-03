@@ -21,6 +21,7 @@ from handlers import (
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
     superuser_command, superuser_password_handler, superuser_callback, superuser_new_password_handler,
+    superuser_restore_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -168,6 +169,7 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(superuser_command, Command("superuser"))
     dp.message.register(superuser_password_handler, SuperUser.waiting_password)
     dp.message.register(superuser_new_password_handler, SuperUser.waiting_new_password)
+    dp.message.register(superuser_restore_handler, F.document, SuperUser.waiting_new_password)
     dp.callback_query.register(superuser_callback, F.data.startswith("su:"))
 
 

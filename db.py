@@ -562,3 +562,157 @@ async def clear_bot_logs():
         print("✅ Логи бота очищены")
     except Exception as e:
         print(f"❌ Ошибка очистки логов бота: {e}")
+
+# ── Backup & Restore ───────────────────────────────────────────────────────────────
+import json
+from datetime import datetime
+
+async def create_backup():
+    """Создаёт бэкап всех данных в JSON"""
+    backup_data = {
+        "timestamp": datetime.now().isoformat(),
+        "users": [],
+        "admins": [],
+        "moderators": [],
+        "tournaments": [],
+        "channel_settings": None,
+        "welcome_messages": [],
+        "superuser_settings": None,
+    }
+    
+    try:
+        # Users
+        cursor = await DB_CONNECTION.execute("SELECT * FROM users")
+        columns = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker", "created_at"]
+        backup_data["users"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        
+        # Admins
+        cursor = await DB_CONNECTION.execute("SELECT * FROM admins")
+        columns = ["tg_id", "username", "added_by", "added_at"]
+        backup_data["admins"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        
+        # Moderators
+        cursor = await DB_CONNECTION.execute("SELECT * FROM moderators")
+        columns = ["tg_id", "username", "added_by", "added_at"]
+        backup_data["moderators"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        
+        # Tournaments
+        cursor = await DB_CONNECTION.execute("SELECT * FROM tournaments")
+        columns = ["id", "name", "description", "date_time", "max_players", "prize", "created_at"]
+        backup_data["tournaments"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        
+        # Channel settings
+        cursor = await DB_CONNECTION.execute("SELECT * FROM channel_settings WHERE id = 1")
+        columns = ["id", "channel_link", "discord_link", "require_subscription", "created_at"]
+        row = await cursor.fetchone()
+        if row:
+            backup_data["channel_settings"] = dict(zip(columns, row))
+        
+        # Welcome messages
+        cursor = await DB_CONNECTION.execute("SELECT * FROM welcome_messages")
+        columns = ["id", "message", "is_active", "created_at"]
+        backup_data["welcome_messages"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        
+        # Superuser settings
+        cursor = await DB_CONNECTION.execute("SELECT * FROM superuser_settings WHERE id = 1")
+        columns = ["id", "password", "created_at"]
+        row = await cursor.fetchone()
+        if row:
+            backup_data["superuser_settings"] = dict(zip(columns, row))
+        
+        backup_json = json.dumps(backup_data, ensure_ascii=False, indent=2)
+        await log_bot("BACKUP", f"Создан бэкап: {len(backup_data['users'])} пользователей, {len(backup_data['tournaments'])} турниров")
+        
+        return backup_json
+    except Exception as e:
+        print(f"❌ Ошибка создания бэкапа: {e}")
+        return None
+
+
+async def restore_from_backup(backup_json):
+    """Восстанавливает данные из JSON бэкапа"""
+    try:
+        data = json.loads(backup_json)
+        
+        # Clear existing data
+        await DB_CONNECTION.execute("DELETE FROM users")
+        await DB_CONNECTION.execute("DELETE FROM admins")
+        await DB_CONNECTION.execute("DELETE FROM moderators")
+        await DB_CONNECTION.execute("DELETE FROM tournaments")
+        await DB_CONNECTION.execute("DELETE FROM welcome_messages")
+        await DB_CONNECTION.commit()
+        
+        # Restore users
+        for user in data.get("users", []):
+            await DB_CONNECTION.execute(
+                "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user["tg_id"], user["username"], user["epic"], user["discord"], user["rank"], user["peak_rank"], user.get("tracker", ""), user.get("created_at", ""))
+            )
+        
+        # Restore admins
+        for admin in data.get("admins", []):
+            await DB_CONNECTION.execute(
+                "INSERT OR REPLACE INTO admins (tg_id, username, added_by, added_at) VALUES (?, ?, ?, ?)",
+                (admin["tg_id"], admin["username"], admin["added_by"], admin["added_at"])
+            )
+        
+        # Restore moderators
+        for mod in data.get("moderators", []):
+            await DB_CONNECTION.execute(
+                "INSERT OR REPLACE INTO moderators (tg_id, username, added_by, added_at) VALUES (?, ?, ?, ?)",
+                (mod["tg_id"], mod["username"], mod["added_by"], mod["added_at"])
+            )
+        
+        # Restore tournaments
+        for tour in data.get("tournaments", []):
+            await DB_CONNECTION.execute(
+                "INSERT INTO tournaments (id, name, description, date_time, max_players, prize, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (tour["id"], tour["name"], tour["description"], tour["date_time"], tour["max_players"], tour["prize"], tour["created_at"])
+            )
+        
+        # Restore welcome messages
+        for wm in data.get("welcome_messages", []):
+            await DB_CONNECTION.execute(
+                "INSERT INTO welcome_messages (id, message, is_active, created_at) VALUES (?, ?, ?, ?)",
+                (wm["id"], wm["message"], wm["is_active"], wm["created_at"])
+            )
+        
+        # Restore channel settings
+        cs = data.get("channel_settings")
+        if cs:
+            await DB_CONNECTION.execute(
+                "INSERT OR REPLACE INTO channel_settings (id, channel_link, discord_link, require_subscription) VALUES (1, ?, ?, ?)",
+                (cs["channel_link"], cs["discord_link"], cs["require_subscription"])
+            )
+        
+        # Restore superuser settings
+        su = data.get("superuser_settings")
+        if su:
+            await DB_CONNECTION.execute(
+                "INSERT OR REPLACE INTO superuser_settings (id, password) VALUES (1, ?)",
+                (su["password"],)
+            )
+        
+        await DB_CONNECTION.commit()
+        await log_bot("RESTORE", f"Восстановлено из бэкапа: {len(data.get('users', []))} пользователей")
+        
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка восстановления из бэкапа: {e}")
+        return False
+
+
+async def get_backup_count():
+    """Получить количество записей для бэкапа"""
+    try:
+        users = await DB_CONNECTION.execute("SELECT COUNT(*) FROM users")
+        admins = await DB_CONNECTION.execute("SELECT COUNT(*) FROM admins")
+        tournaments = await DB_CONNECTION.execute("SELECT COUNT(*) FROM tournaments")
+        
+        return {
+            "users": (await users.fetchone())[0],
+            "admins": (await admins.fetchone())[0],
+            "tournaments": (await tournaments.fetchone())[0],
+        }
+    except Exception as e:
+        return {"users": 0, "admins": 0, "tournaments": 0}

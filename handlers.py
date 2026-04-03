@@ -1,4 +1,4 @@
-from aiogram import types, Bot, F
+ппроверитукfrom aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, StateFilter
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
@@ -13,6 +13,7 @@ from db import (
     get_superuser_password, set_superuser_password,
     log_activity, get_activity_logs, clear_activity_logs,
     log_bot, get_bot_logs, clear_bot_logs,
+    create_backup, restore_from_backup, get_backup_count,
 )
 from states import Registration, Admin
 from keyboards import (
@@ -1007,18 +1008,48 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
     elif action == "stats":
         user_count = await count_users()
         admins = await get_all_admins()
-        activity_logs = await get_activity_logs(1)
-        bot_logs = await get_bot_logs(1)
         
         text = (
             f"📈 <b>Общая статистика:</b>\n\n"
             f"👥 Пользователей: <b>{user_count}</b>\n"
-            f"👑 Администраторов: <b>{len(admins)}</b>\n"
-            f"📊 Записей в логах активности: <b>{len(await get_activity_logs(1000))}</b>\n"
-            f"📝 Записей в логах бота: <b>{len(await get_bot_logs(1000))}</b>"
+            f"👑 Администраторов: <b>{len(admins)}</b>"
         )
         
         await callback.message.edit_text(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        await callback.answer()
+    
+    elif action == "backup":
+        await callback.message.edit_text("💾 <b>Создание бэкапа...</b>")
+        await callback.answer()
+        
+        backup_json = await create_backup()
+        if backup_json:
+            counts = await get_backup_count()
+            # Send backup as a file
+            from io import BytesIO
+            backup_bytes = BytesIO(backup_json.encode('utf-8'))
+            backup_bytes.name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            await callback.message.answer_document(
+                document=backup_bytes,
+                caption=f"💾 <b>Бэкап создан!</b>\n\n"
+                        f"👥 Пользователей: {counts['users']}\n"
+                        f"👑 Админов: {counts['admins']}\n"
+                        f"🏆 Турниров: {counts['tournaments']}",
+                parse_mode="HTML"
+            )
+            await callback.message.delete()
+        else:
+            await callback.message.edit_text("❌ Ошибка при создании бэкапа!", reply_markup=kb_superuser_back)
+    
+    elif action == "restore":
+        await callback.message.edit_text(
+            "📂 <b>Восстановление из бэкапа</b>\n\n"
+            "Отправьте JSON файл бэкапа для восстановления.\n"
+            "⚠️ <b>Внимание!</b> Это удалит все текущие данные и заменит их данными из бэкапа.",
+            reply_markup=kb_superuser_back,
+            parse_mode="HTML"
+        )
         await callback.answer()
 
 
@@ -1038,3 +1069,38 @@ async def superuser_new_password_handler(msg: types.Message, state: FSMContext):
         reply_markup=kb_superuser_main,
         parse_mode="HTML"
     )
+
+
+async def superuser_restore_handler(msg: types.Message, state: FSMContext):
+    """Обработка восстановления из бэкапа (файл)"""
+    if not msg.document:
+        await msg.answer("⚠️ Пожалуйста, отправьте JSON файл бэкапа.")
+        return
+    
+    try:
+        # Download the file
+        file = await bot.get_file(msg.document.file_id)
+        file_content = await bot.download_file(file.file_path)
+        backup_json = file_content.decode('utf-8')
+        
+        # Confirm restore
+        await msg.answer("⏳ <b>Восстановление из бэкапа...</b>", parse_mode="HTML")
+        
+        success = await restore_from_backup(backup_json)
+        
+        if success:
+            await log_activity(msg.from_user.id, msg.from_user.username, "RESTORE", "Восстановление из бэкапа выполнено")
+            await msg.answer(
+                "✅ <b>Данные успешно восстановлены из бэкапа!</b>",
+                reply_markup=kb_superuser_main,
+                parse_mode="HTML"
+            )
+        else:
+            await msg.answer(
+                "❌ <b>Ошибка при восстановлении!</b>\nПроверьте формат файла.",
+                reply_markup=kb_superuser_back,
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        await msg.answer(f"❌ Ошибка: {e}")
+        await log_bot("ERROR", f"Ошибка восстановления: {e}")
