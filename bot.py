@@ -77,7 +77,7 @@ async def main():
             bot,
             allowed_updates=["message", "callback_query"],
             close_bot_session=False,
-            drop_pending_updates=True  # Сбросить старые обновления
+            drop_pending_updates=True
         )
     except Exception as e:
         print(f"❌ Критическая ошибка: {e}")
@@ -89,9 +89,11 @@ async def main():
 
 
 def register_handlers(dp: Dispatcher):
+    from keyboards import kb_admin_panel
+    
     # Basic commands
     dp.message.register(start_handler, Command("start"))
-    dp.message.register(registration_handler, F.text == "� Регистрация")
+    dp.message.register(registration_handler, F.text == "🎮 Регистрация")
     dp.message.register(me_handler, F.text == "📋 Мои данные")
     dp.message.register(delete_self_handler, F.text == "🗑 Удалить мои данные")
     dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
@@ -147,7 +149,7 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
     
-    # admin management - ИСПРАВЛЕНО!
+    # admin management
     dp.callback_query.register(admin_add_callback, F.data == "admin:add")
     dp.callback_query.register(admin_remove_callback, F.data == "admin:remove")
     dp.callback_query.register(admin_list, F.data == "admin:list")
@@ -161,19 +163,14 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(channel_edit_link, Admin.waiting_channel_link)
     dp.message.register(channel_edit_discord, Admin.waiting_discord_link)
     
-    # user functions
-    dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
-    dp.message.register(discord_handler, F.text == "🎮 Discord")
-    
     # superuser
     dp.message.register(superuser_command, Command("superuser"))
     dp.message.register(superuser_password_handler, SuperUser.waiting_password)
     dp.message.register(superuser_new_password_handler, SuperUser.waiting_new_password)
-    dp.message.register(superuser_restore_handler, F.document, SuperUser.waiting_new_password)
     dp.callback_query.register(superuser_callback, F.data.startswith("su:"))
 
 
-# Admin management callbacks - ИСПРАВЛЕНО!
+# Admin management callbacks
 async def admin_add_callback(callback: CallbackQuery, state: FSMContext):
     print(f"🎯 Кнопка 'Добавить админа' нажата!")
     await callback.answer()
@@ -195,6 +192,7 @@ async def tournament_notifications_callback(callback: CallbackQuery):
 # Pending notifications list callback
 async def pending_notifications_callback(callback: CallbackQuery):
     from db import get_pending_notifications
+    from keyboards import kb_admin_panel
     notifications = await get_pending_notifications()
     
     if not notifications:
