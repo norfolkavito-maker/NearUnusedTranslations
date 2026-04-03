@@ -1396,19 +1396,30 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
     
     elif action == "backup":
+        from aiogram.types import InputFile
+        from io import BytesIO
+        import os
+        
         await callback.message.edit_text("💾 <b>Создание бэкапа...</b>")
         await callback.answer()
         
         backup_json = await create_backup()
         if backup_json:
             counts = await get_backup_count()
-            # Send backup as a file
-            from io import BytesIO
+            filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            # Сохраняем на диск
+            os.makedirs("backups", exist_ok=True)
+            filepath = f"backups/{filename}"
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(backup_json)
+            
+            # Отправляем как файл
             backup_bytes = BytesIO(backup_json.encode('utf-8'))
-            backup_bytes.name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            backup_bytes.name = filename
             
             await callback.message.answer_document(
-                document=backup_bytes,
+                document=InputFile(path_or_bytesio=backup_bytes),
                 caption=f"💾 <b>Бэкап создан!</b>\n\n"
                         f"👥 Пользователей: {counts['users']}\n"
                         f"👑 Админов: {counts['admins']}\n"
@@ -1418,6 +1429,54 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
             await callback.message.delete()
         else:
             await callback.message.edit_text("❌ Ошибка при создании бэкапа!", reply_markup=kb_superuser_back)
+    
+    elif action == "download_backup":
+        """Скачать последний автоматический бэкап"""
+        from aiogram.types import InputFile
+        from io import BytesIO
+        import glob
+        
+        # Ищем последний автобэкап
+        backups = glob.glob("backups/auto_backup_*.json")
+        if not backups:
+            # Если нет автобэкапа — создаём новый
+            await callback.message.edit_text("💾 <b>Создание бэкапа для скачивания...</b>")
+            await callback.answer()
+            backup_json = await create_backup()
+            if backup_json:
+                counts = await get_backup_count()
+                os.makedirs("backups", exist_ok=True)
+                filename = f"backups/backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(backup_json)
+                backup_bytes = BytesIO(backup_json.encode('utf-8'))
+                backup_bytes.name = filename.split("/")[-1]
+                await callback.message.answer_document(
+                    document=InputFile(path_or_bytesio=backup_bytes),
+                    caption=f"💾 <b>Бэкап создан!</b>\n\n"
+                            f"👥 Пользователей: {counts['users']}\n"
+                            f"👑 Админов: {counts['admins']}\n"
+                            f"🏆 Турниров: {counts['tournaments']}",
+                    parse_mode="HTML"
+                )
+                await callback.message.delete()
+            else:
+                await callback.message.edit_text("❌ Ошибка при создании бэкапа!", reply_markup=kb_superuser_back)
+        else:
+            # Берём последний
+            latest = max(backups, key=os.path.getmtime)
+            with open(latest, "r", encoding="utf-8") as f:
+                backup_json = f.read()
+            
+            backup_bytes = BytesIO(backup_json.encode('utf-8'))
+            backup_bytes.name = os.path.basename(latest)
+            
+            await callback.message.answer_document(
+                document=InputFile(path_or_bytesio=backup_bytes),
+                caption=f"💾 <b>Последний автобэкап:</b>\n📁 {os.path.basename(latest)}",
+                parse_mode="HTML"
+            )
+            await callback.answer()
     
     elif action == "restore":
         await callback.message.edit_text(
@@ -1489,19 +1548,26 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
         )
     
     elif action == "auto_backup":
-        # Автоматический бэкап
+        from aiogram.types import InputFile
+        from io import BytesIO
+        import os
+        
         await callback.message.edit_text("💾 <b>Создание автоматического бэкапа...</b>")
         await callback.answer()
         
         backup_json = await create_backup()
         if backup_json:
             counts = await get_backup_count()
-            from io import BytesIO
+            os.makedirs("backups", exist_ok=True)
+            filename = f"backups/auto_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(backup_json)
+            
             backup_bytes = BytesIO(backup_json.encode('utf-8'))
-            backup_bytes.name = f"auto_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            backup_bytes.name = filename.split("/")[-1]
             
             await callback.message.answer_document(
-                document=backup_bytes,
+                document=InputFile(path_or_bytesio=backup_bytes),
                 caption=f"💾 <b>Автоматический бэкап создан!</b>\n\n"
                         f"👥 Пользователей: {counts['users']}\n"
                         f"👑 Админов: {counts['admins']}\n"

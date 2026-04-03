@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime
 from aiogram import Bot
 from db import get_all_users, get_pending_notifications, mark_notification_sent, create_backup, log_bot
@@ -9,6 +10,15 @@ _stop_event = asyncio.Event()
 # Счётчик для автоматического бэкапа (каждые 6 часов = 360 проверок)
 _AUTO_BACKUP_INTERVAL = 360
 _backup_counter = 0
+
+
+def _save_backup(backup_json: str) -> str:
+    """Сохранить бэкап на диск. Возвращает путь к файлу."""
+    os.makedirs("backups", exist_ok=True)
+    filename = f"backups/auto_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(backup_json)
+    return filename
 
 
 def stop_scheduler():
@@ -54,8 +64,9 @@ async def auto_backup():
         try:
             backup_json = await create_backup()
             if backup_json:
-                await log_bot("AUTO_BACKUP", "Автоматический бэкап создан успешно")
-                print("💾 Автоматический бэкап создан")
+                filepath = _save_backup(backup_json)
+                await log_bot("AUTO_BACKUP", f"Автоматический бэкап сохранён: {filepath}")
+                print(f"💾 Автоматический бэкап сохранён: {filepath}")
         except Exception as e:
             await log_bot("AUTO_BACKUP_ERROR", f"Ошибка: {e}")
             print(f"❌ Ошибка автоматического бэкапа: {e}")

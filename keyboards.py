@@ -221,6 +221,7 @@ kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="📝 Логи бота", callback_data="su:bot_logs")],
     [InlineKeyboardButton(text="👥 Все пользователи", callback_data="su:all_users")],
     [InlineKeyboardButton(text="💾 Создать бэкап", callback_data="su:backup")],
+    [InlineKeyboardButton(text="📥 Скачать последний бэкап", callback_data="su:download_backup")],
     [InlineKeyboardButton(text="📂 Восстановить из бэкапа", callback_data="su:restore")],
     [InlineKeyboardButton(text="⚙️ Войти в админ-панель", callback_data="su:admin_panel")],
     [InlineKeyboardButton(text="🔑 Сменить пароль", callback_data="su:change_password")],
