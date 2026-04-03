@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import init_db, add_user, check_user
+from db import init_db, _safe_query, _fetchone
 from config import TURSO_URL, TURSO_TOKEN
 
 PLAYERS = [
@@ -96,11 +96,19 @@ PLAYERS = [
 async def main():
     if not TURSO_URL or not TURSO_TOKEN:
         print("❌ TURSO_URL и TURSO_TOKEN не настроены!")
+        print(f"   TURSO_URL: {'✅' if TURSO_URL else '❌'}")
+        print(f"   TURSO_TOKEN: {'✅' if TURSO_TOKEN else '❌'}")
         sys.exit(1)
 
     print(f"🔗 Подключение к Turso: {TURSO_URL[:60]}...")
     print("🗄️  Инициализация таблиц БД...")
     await init_db()
+
+    # Проверим сколько сейчас пользователей
+    cur = await _safe_query("SELECT COUNT(*) FROM users")
+    if cur:
+        row = _fetchone(cur)
+        print(f"📊 Сейчас в БД: {row[0] if row else 0} пользователей")
 
     added = 0
     skipped = 0
@@ -110,29 +118,37 @@ async def main():
 
     for player in PLAYERS:
         try:
-            exists = await check_user(player["tg_id"])
+            # Прямая проверка существования
+            cur = await _safe_query("SELECT tg_id FROM users WHERE tg_id = ?", (player["tg_id"],))
+            exists = False
+            if cur:
+                row = _fetchone(cur)
+                exists = row is not None
+
             if exists:
                 print(f"⏭️  Пропущен  @{player['username']} ({player['tg_id']}) — уже в БД")
                 skipped += 1
                 continue
 
-            await add_user(
-                tg_id=player["tg_id"],
-                username=player["username"],
-                epic=player["epic"],
-                discord=player["discord"],
-                rank=player["rank"],
-                peak_rank=player["peak_rank"],
-                tracker=player["tracker"],
+            # Прямой INSERT
+            await _safe_query(
+                "INSERT OR REPLACE INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (player["tg_id"], player["username"], player["epic"], player["discord"],
+                 player["rank"], player["peak_rank"], player["tracker"])
             )
-            print(
-                f"✅ Добавлен   @{player['username']} ({player['tg_id']}) | "
-                f"Epic: {player['epic']} | MMR: {player['rank']}"
-            )
+            print(f"✅ Добавлен   @{player['username']} ({player['tg_id']}) | Epic: {player['epic']}")
             added += 1
         except Exception as e:
             print(f"❌ Ошибка    @{player['username']} ({player['tg_id']}): {e}")
+            import traceback
+            traceback.print_exc()
             errors += 1
+
+    # Финальная проверка
+    cur = await _safe_query("SELECT COUNT(*) FROM users")
+    if cur:
+        row = _fetchone(cur)
+        print(f"\n📊 Теперь в БД: {row[0] if row else 0} пользователей")
 
     print(f"\n{'─' * 50}")
     print(f"✅ Добавлено:  {added}")
