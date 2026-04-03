@@ -17,7 +17,7 @@ from db import (
     log_bot, get_bot_logs, clear_bot_logs,
     create_backup, restore_from_backup, get_backup_count,
 )
-from states import Registration, Admin
+from states import Registration, Admin, ContactAdmin, SuperUser
 from keyboards import (
     kb_main, kb_admin_main, kb_tiers, kb_subtiers, kb_divisions,
     kb_sub_check, kb_admin_panel, kb_deleteall_confirm, kb_delete_confirm,
@@ -824,19 +824,30 @@ async def channel_toggle_subscription(callback: CallbackQuery):
 
 
 # ── Contact Admins ───────────────────────────────────────────────────────────────
-async def contact_admins_handler(msg: types.Message, bot: Bot):
+async def contact_admins_handler(msg: types.Message, state: FSMContext):
+    """Обработка кнопки 'Обратиться к админам'"""
+    await msg.answer(
+        "💬 <b>Напишите ваше сообщение администраторам:</b>\n\n"
+        "Отправьте сообщение и оно будет доставлено всем админам.",
+        parse_mode="HTML"
+    )
+    await state.set_state(ContactAdmin.waiting_message)
+
+
+async def contact_admins_message_handler(msg: types.Message, bot: Bot):
+    """Обработка сообщения для админов"""
     try:
         admins = await get_all_admins()
-        admin_ids = ADMIN_IDS + [admin['tg_id'] for admin in admins]
+        admin_ids = list(ADMIN_IDS) + [admin['tg_id'] for admin in admins]
+        
+        # Удаляем дубликаты
+        admin_ids = list(set(admin_ids))
         
         if not admin_ids:
-            await msg.answer(
-                "⚠️ В данный момент нет доступных администраторов",
-                reply_markup=_main_kb(msg.from_user.id)
-            )
+            await msg.answer("⚠️ В данный момент нет доступных администраторов")
             return
         
-        # Send message to all admins
+        # Отправляем сообщение всем админам
         success_count = 0
         for admin_id in admin_ids:
             try:
@@ -856,11 +867,8 @@ async def contact_admins_handler(msg: types.Message, bot: Bot):
             reply_markup=_main_kb(msg.from_user.id)
         )
     except Exception as e:
-        print(f"Error in contact_admins_handler: {e}")
-        await msg.answer(
-            "⚠️ Произошла ошибка при отправке сообщения",
-            reply_markup=_main_kb(msg.from_user.id)
-        )
+        print(f"Error in contact_admins_message_handler: {e}")
+        await msg.answer("⚠️ Произошла ошибка при отправке сообщения")
 
 
 # ── Discord Handler ───────────────────────────────────────────────────────────────
