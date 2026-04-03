@@ -1,42 +1,82 @@
 import aiosqlite
 import os
+import asyncio
 from config import TURSO_URL, TURSO_TOKEN
 
-# Database Connection - временно вернем к SQLite
+# Database Connection - используем Turso для постоянного хранения
+DB_CONNECTION = None
+USE_TURSO = bool(TURSO_URL and TURSO_TOKEN)
+
 async def get_db_connection():
-    """Подключение к базе данных"""
+    """Подключение к базе данных - Turso или SQLite fallback"""
     try:
-        # Пробуем разные пути для БД
-        if os.path.exists("/app/data"):
-            path = "/app/data/users.db"
-            print("✅ Используем /app/data для БД")
-        elif os.path.exists("/tmp"):
-            path = "/tmp/users.db"
-            print("✅ Используем /tmp для БД")
-        elif os.path.exists("./"):
-            path = "./users.db"
-            print("✅ Используем локальную директорию для БД")
+        if USE_TURSO:
+            print(f"🔗 Подключение к Turso: {TURSO_URL}")
+            import libsql_experimental
+            conn = libsql_experimental.connect(TURSO_URL, auth_token=TURSO_TOKEN)
+            return conn
         else:
-            path = ":memory:"
-            print("⚠️ Используем in-memory БД")
-        
-        conn = await aiosqlite.connect(path)
-        return conn
+            # Fallback to SQLite с постоянным хранением
+            if os.path.exists("/app/data"):
+                path = "/app/data/users.db"
+                print("✅ Используем /app/data для БД")
+            elif os.path.exists("./"):
+                path = "./users.db"
+                print("✅ Используем локальную директорию для БД")
+            else:
+                path = ":memory:"
+                print("⚠️ Используем in-memory БД")
+            
+            conn = await aiosqlite.connect(path)
+            return conn
     except Exception as e:
         print(f"❌ Ошибка подключения к БД: {e}")
         raise
 
-DB_CONNECTION = None
+async def _execute(sql, params=()):
+    """Execute SQL with proper sync/async handling"""
+    global DB_CONNECTION
+    if USE_TURSO:
+        loop = asyncio.get_event_loop()
+        cursor = await loop.run_in_executor(None, lambda: DB_CONNECTION.execute(sql, params))
+        return cursor
+    else:
+        return await DB_CONNECTION.execute(sql, params)
+
+async def _commit():
+    """Commit with proper sync/async handling"""
+    global DB_CONNECTION
+    if USE_TURSO:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, DB_CONNECTION.commit)
+    else:
+        await DB_CONNECTION.commit()
+
+async def _fetchone(cursor):
+    """Fetch one row with proper sync/async handling"""
+    if USE_TURSO:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, cursor.fetchone)
+    else:
+        return await cursor.fetchone()
+
+async def _fetchall(cursor):
+    """Fetch all rows with proper sync/async handling"""
+    if USE_TURSO:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, cursor.fetchall)
+    else:
+        return await cursor.fetchall()
 
 async def init_db():
     global DB_CONNECTION
-    print(f"🗄️ Инициализация базы данных...")
+    print(f"🗄️ Инициализация базы данных... Turso: {USE_TURSO}")
     
     try:
         DB_CONNECTION = await get_db_connection()
         
         # Users table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS users (
             tg_id INTEGER PRIMARY KEY,
             username TEXT,
@@ -50,7 +90,7 @@ async def init_db():
         """)
         
         # Admins table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS admins (
             tg_id INTEGER PRIMARY KEY,
             username TEXT,
@@ -60,7 +100,7 @@ async def init_db():
         """)
         
         # Moderators table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS moderators (
             tg_id INTEGER PRIMARY KEY,
             username TEXT,
@@ -70,7 +110,7 @@ async def init_db():
         """)
         
         # Channel settings table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS channel_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             channel_link TEXT,
@@ -81,7 +121,7 @@ async def init_db():
         """)
         
         # Tournaments table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS tournaments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -94,7 +134,7 @@ async def init_db():
         """)
         
         # Welcome messages table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS welcome_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             message TEXT,
@@ -104,7 +144,7 @@ async def init_db():
         """)
         
         # Tournament notifications table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS tournament_notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tournament_id INTEGER,
@@ -116,7 +156,7 @@ async def init_db():
         """)
         
         # Superuser settings table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS superuser_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             password TEXT DEFAULT '1234',
@@ -125,7 +165,7 @@ async def init_db():
         """)
         
         # Activity logs table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS activity_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -137,7 +177,7 @@ async def init_db():
         """)
         
         # Bot logs table
-        await DB_CONNECTION.execute("""
+        await _execute("""
         CREATE TABLE IF NOT EXISTS bot_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             level TEXT DEFAULT 'INFO',
@@ -147,12 +187,11 @@ async def init_db():
         """)
         
         # Initialize superuser settings if not exists
-        await DB_CONNECTION.execute("""
+        await _execute("""
         INSERT OR IGNORE INTO superuser_settings (id, password) VALUES (1, '1234')
         """)
-        await DB_CONNECTION.commit()
+        await _commit()
         
-        await DB_CONNECTION.commit()
         print("✅ База данных инициализирована")
         
     except Exception as e:
@@ -162,11 +201,11 @@ async def init_db():
 # ── User Management ───────────────────────────────────────────────────────────────
 async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank="", tracker=""):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (tg_id, username, epic, discord, rank, peak_rank, tracker)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Пользователь {tg_id} добавлен в БД")
         await log_activity(tg_id, username, "REGISTRATION", f"Epic: {epic}, Discord: {discord}")
     except Exception as e:
@@ -174,8 +213,8 @@ async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank="
 
 async def check_user(tg_id):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT tg_id FROM users WHERE tg_id = ?", (tg_id,))
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT tg_id FROM users WHERE tg_id = ?", (tg_id,))
+        row = await _fetchone(cursor)
         return row is not None
     except Exception as e:
         print(f"❌ Ошибка проверки пользователя: {e}")
@@ -183,8 +222,8 @@ async def check_user(tg_id):
 
 async def get_user(tg_id):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM users WHERE tg_id = ?", (tg_id,))
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT * FROM users WHERE tg_id = ?", (tg_id,))
+        row = await _fetchone(cursor)
         if row:
             columns = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker"]
             return dict(zip(columns, row))
@@ -195,8 +234,8 @@ async def get_user(tg_id):
 
 async def get_all_users():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM users ORDER BY created_at DESC")
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM users ORDER BY created_at DESC")
+        rows = await _fetchall(cursor)
         columns = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -205,24 +244,24 @@ async def get_all_users():
 
 async def delete_user(tg_id):
     try:
-        await DB_CONNECTION.execute("DELETE FROM users WHERE tg_id = ?", (tg_id,))
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM users WHERE tg_id = ?", (tg_id,))
+        await _commit()
         print(f"✅ Пользователь {tg_id} удален из БД")
     except Exception as e:
         print(f"❌ Ошибка удаления пользователя: {e}")
 
 async def delete_all_users():
     try:
-        await DB_CONNECTION.execute("DELETE FROM users")
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM users")
+        await _commit()
         print("✅ Все пользователи удалены из БД")
     except Exception as e:
         print(f"❌ Ошибка удаления всех пользователей: {e}")
 
 async def count_users():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT COUNT(*) FROM users")
-        count = await cursor.fetchone()
+        cursor = await _execute("SELECT COUNT(*) FROM users")
+        count = await _fetchone(cursor)
         return count[0] if count else 0
     except Exception as e:
         print(f"❌ Ошибка подсчета пользователей: {e}")
@@ -231,27 +270,27 @@ async def count_users():
 # ── Admin Management ───────────────────────────────────────────────────────────────
 async def add_admin(tg_id, username="", added_by=0):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT OR REPLACE INTO admins (tg_id, username, added_by) VALUES (?, ?, ?)",
             (tg_id, username, added_by)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Админ {tg_id} добавлен в БД")
     except Exception as e:
         print(f"❌ Ошибка добавления админа: {e}")
 
 async def remove_admin(tg_id):
     try:
-        await DB_CONNECTION.execute("DELETE FROM admins WHERE tg_id = ?", (tg_id,))
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM admins WHERE tg_id = ?", (tg_id,))
+        await _commit()
         print(f"✅ Админ {tg_id} удален из БД")
     except Exception as e:
         print(f"❌ Ошибка удаления админа: {e}")
 
 async def get_all_admins():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM admins ORDER BY added_at DESC")
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM admins ORDER BY added_at DESC")
+        rows = await _fetchall(cursor)
         columns = ["tg_id", "username", "added_by", "added_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -260,8 +299,8 @@ async def get_all_admins():
 
 async def is_admin_db(tg_id):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT tg_id FROM admins WHERE tg_id = ?", (tg_id,))
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT tg_id FROM admins WHERE tg_id = ?", (tg_id,))
+        row = await _fetchone(cursor)
         return row is not None
     except Exception as e:
         print(f"❌ Ошибка проверки админа: {e}")
@@ -270,27 +309,27 @@ async def is_admin_db(tg_id):
 # ── Moderator Management ───────────────────────────────────────────────────────────
 async def add_moderator(tg_id, username="", added_by=0):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT OR REPLACE INTO moderators (tg_id, username, added_by) VALUES (?, ?, ?)",
             (tg_id, username, added_by)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Модератор {tg_id} добавлен в БД")
     except Exception as e:
         print(f"❌ Ошибка добавления модератора: {e}")
 
 async def remove_moderator(tg_id):
     try:
-        await DB_CONNECTION.execute("DELETE FROM moderators WHERE tg_id = ?", (tg_id,))
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM moderators WHERE tg_id = ?", (tg_id,))
+        await _commit()
         print(f"✅ Модератор {tg_id} удален из БД")
     except Exception as e:
         print(f"❌ Ошибка удаления модератора: {e}")
 
 async def get_all_moderators():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM moderators ORDER BY added_at DESC")
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM moderators ORDER BY added_at DESC")
+        rows = await _fetchall(cursor)
         columns = ["tg_id", "username", "added_by", "added_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -299,8 +338,8 @@ async def get_all_moderators():
 
 async def is_moderator(tg_id):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT tg_id FROM moderators WHERE tg_id = ?", (tg_id,))
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT tg_id FROM moderators WHERE tg_id = ?", (tg_id,))
+        row = await _fetchone(cursor)
         return row is not None
     except Exception as e:
         print(f"❌ Ошибка проверки модератора: {e}")
@@ -312,19 +351,19 @@ async def is_admin_or_moderator(tg_id):
 # ── Channel Settings ───────────────────────────────────────────────────────────────
 async def update_channel_settings(channel_link="", discord_link="", require_subscription=False):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT OR REPLACE INTO channel_settings (id, channel_link, discord_link, require_subscription) VALUES (1, ?, ?, ?)",
             (channel_link, discord_link, require_subscription)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print("✅ Настройки канала обновлены")
     except Exception as e:
         print(f"❌ Ошибка обновления настроек канала: {e}")
 
 async def get_channel_settings():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM channel_settings WHERE id = 1")
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT * FROM channel_settings WHERE id = 1")
+        row = await _fetchone(cursor)
         if row:
             columns = ["id", "channel_link", "discord_link", "require_subscription", "created_at"]
             return dict(zip(columns, row))
@@ -336,12 +375,12 @@ async def get_channel_settings():
 # ── Tournament Management ───────────────────────────────────────────────────────────
 async def add_tournament(name, description="", date_time="", max_players=0, prize=""):
     try:
-        cursor = await DB_CONNECTION.execute(
+        cursor = await _execute(
             "INSERT INTO tournaments (name, description, date_time, max_players, prize) VALUES (?, ?, ?, ?, ?)",
             (name, description, date_time, max_players, prize)
         )
         tournament_id = cursor.lastrowid
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Турнир {tournament_id} добавлен в БД")
         return tournament_id
     except Exception as e:
@@ -350,8 +389,8 @@ async def add_tournament(name, description="", date_time="", max_players=0, priz
 
 async def get_all_tournaments():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM tournaments ORDER BY created_at DESC")
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM tournaments ORDER BY created_at DESC")
+        rows = await _fetchall(cursor)
         columns = ["id", "name", "description", "date_time", "max_players", "prize", "created_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -360,8 +399,8 @@ async def get_all_tournaments():
 
 async def get_tournament(tournament_id):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM tournaments WHERE id = ?", (tournament_id,))
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT * FROM tournaments WHERE id = ?", (tournament_id,))
+        row = await _fetchone(cursor)
         if row:
             columns = ["id", "name", "description", "date_time", "max_players", "prize", "created_at"]
             return dict(zip(columns, row))
@@ -393,16 +432,16 @@ async def update_tournament(tournament_id, name=None, description=None, date_tim
         
         if updates:
             params.append(tournament_id)
-            await DB_CONNECTION.execute(f"UPDATE tournaments SET {', '.join(updates)} WHERE id = ?", params)
-            await DB_CONNECTION.commit()
+            await _execute(f"UPDATE tournaments SET {', '.join(updates)} WHERE id = ?", params)
+            await _commit()
             print(f"✅ Турнир {tournament_id} обновлен")
     except Exception as e:
         print(f"❌ Ошибка обновления турнира: {e}")
 
 async def delete_tournament(tournament_id):
     try:
-        await DB_CONNECTION.execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM tournaments WHERE id = ?", (tournament_id,))
+        await _commit()
         print(f"✅ Турнир {tournament_id} удален из БД")
     except Exception as e:
         print(f"❌ Ошибка удаления турнира: {e}")
@@ -410,16 +449,14 @@ async def delete_tournament(tournament_id):
 # ── Welcome Message Management ───────────────────────────────────────────────────────
 async def add_welcome_message(message):
     try:
-        # Деактивируем все предыдущие сообщения
-        await DB_CONNECTION.execute("UPDATE welcome_messages SET is_active = 0")
+        await _execute("UPDATE welcome_messages SET is_active = 0")
         
-        # Добавляем новое активное сообщение
-        cursor = await DB_CONNECTION.execute(
+        cursor = await _execute(
             "INSERT INTO welcome_messages (message, is_active) VALUES (?, 1)",
             (message,)
         )
         message_id = cursor.lastrowid
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Приветственное сообщение {message_id} добавлено")
         return message_id
     except Exception as e:
@@ -428,8 +465,8 @@ async def add_welcome_message(message):
 
 async def get_active_welcome_message():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM welcome_messages WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1")
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT * FROM welcome_messages WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1")
+        row = await _fetchone(cursor)
         if row:
             columns = ["id", "message", "is_active", "created_at"]
             return dict(zip(columns, row))
@@ -440,11 +477,11 @@ async def get_active_welcome_message():
 
 async def update_welcome_message(message_id, message):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "UPDATE welcome_messages SET message = ? WHERE id = ?",
             (message, message_id)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Приветственное сообщение {message_id} обновлено")
     except Exception as e:
         print(f"❌ Ошибка обновления приветственного сообщения: {e}")
@@ -452,12 +489,12 @@ async def update_welcome_message(message_id, message):
 # ── Tournament Notifications Management ───────────────────────────────────────────────
 async def add_tournament_notification(tournament_id, message, send_time):
     try:
-        cursor = await DB_CONNECTION.execute(
+        cursor = await _execute(
             "INSERT INTO tournament_notifications (tournament_id, message, send_time) VALUES (?, ?, ?)",
             (tournament_id, message, send_time)
         )
         notification_id = cursor.lastrowid
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Уведомление {notification_id} добавлено")
         return notification_id
     except Exception as e:
@@ -466,10 +503,10 @@ async def add_tournament_notification(tournament_id, message, send_time):
 
 async def get_pending_notifications():
     try:
-        cursor = await DB_CONNECTION.execute(
+        cursor = await _execute(
             "SELECT * FROM tournament_notifications WHERE sent = 0 ORDER BY send_time ASC"
         )
-        rows = await cursor.fetchall()
+        rows = await _fetchall(cursor)
         columns = ["id", "tournament_id", "message", "send_time", "sent", "created_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -478,11 +515,11 @@ async def get_pending_notifications():
 
 async def mark_notification_sent(notification_id):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "UPDATE tournament_notifications SET sent = 1 WHERE id = ?",
             (notification_id,)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
         print(f"✅ Уведомление {notification_id} отмечено как отправленное")
     except Exception as e:
         print(f"❌ Ошибка отметки уведомления как отправленного: {e}")
@@ -490,8 +527,8 @@ async def mark_notification_sent(notification_id):
 # ── SuperUser Settings ───────────────────────────────────────────────────────────────
 async def get_superuser_password():
     try:
-        cursor = await DB_CONNECTION.execute("SELECT password FROM superuser_settings WHERE id = 1")
-        row = await cursor.fetchone()
+        cursor = await _execute("SELECT password FROM superuser_settings WHERE id = 1")
+        row = await _fetchone(cursor)
         return row[0] if row else '1234'
     except Exception as e:
         print(f"❌ Ошибка получения пароля superuser: {e}")
@@ -499,8 +536,8 @@ async def get_superuser_password():
 
 async def set_superuser_password(new_password):
     try:
-        await DB_CONNECTION.execute("UPDATE superuser_settings SET password = ? WHERE id = 1", (new_password,))
-        await DB_CONNECTION.commit()
+        await _execute("UPDATE superuser_settings SET password = ? WHERE id = 1", (new_password,))
+        await _commit()
         print("✅ Пароль superuser обновлён")
     except Exception as e:
         print(f"❌ Ошибка обновления пароля superuser: {e}")
@@ -508,18 +545,18 @@ async def set_superuser_password(new_password):
 # ── Activity Logging ───────────────────────────────────────────────────────────────
 async def log_activity(user_id, username, action, details=""):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT INTO activity_logs (user_id, username, action, details) VALUES (?, ?, ?, ?)",
             (user_id, username, action, details)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
     except Exception as e:
         print(f"❌ Ошибка логирования активности: {e}")
 
 async def get_activity_logs(limit=50):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT ?", (limit,))
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = await _fetchall(cursor)
         columns = ["id", "user_id", "username", "action", "details", "created_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -528,8 +565,8 @@ async def get_activity_logs(limit=50):
 
 async def clear_activity_logs():
     try:
-        await DB_CONNECTION.execute("DELETE FROM activity_logs")
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM activity_logs")
+        await _commit()
         print("✅ Логи активности очищены")
     except Exception as e:
         print(f"❌ Ошибка очистки логов активности: {e}")
@@ -537,18 +574,18 @@ async def clear_activity_logs():
 # ── Bot Logging ───────────────────────────────────────────────────────────────
 async def log_bot(level, message):
     try:
-        await DB_CONNECTION.execute(
+        await _execute(
             "INSERT INTO bot_logs (level, message) VALUES (?, ?)",
             (level, message)
         )
-        await DB_CONNECTION.commit()
+        await _commit()
     except Exception as e:
         print(f"❌ Ошибка логирования бота: {e}")
 
 async def get_bot_logs(limit=50):
     try:
-        cursor = await DB_CONNECTION.execute("SELECT * FROM bot_logs ORDER BY created_at DESC LIMIT ?", (limit,))
-        rows = await cursor.fetchall()
+        cursor = await _execute("SELECT * FROM bot_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = await _fetchall(cursor)
         columns = ["id", "level", "message", "created_at"]
         return [dict(zip(columns, row)) for row in rows]
     except Exception as e:
@@ -557,8 +594,8 @@ async def get_bot_logs(limit=50):
 
 async def clear_bot_logs():
     try:
-        await DB_CONNECTION.execute("DELETE FROM bot_logs")
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM bot_logs")
+        await _commit()
         print("✅ Логи бота очищены")
     except Exception as e:
         print(f"❌ Ошибка очистки логов бота: {e}")
@@ -582,41 +619,41 @@ async def create_backup():
     
     try:
         # Users
-        cursor = await DB_CONNECTION.execute("SELECT * FROM users")
+        cursor = await _execute("SELECT * FROM users")
         columns = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker", "created_at"]
-        backup_data["users"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        backup_data["users"] = [dict(zip(columns, row)) for row in await _fetchall(cursor)]
         
         # Admins
-        cursor = await DB_CONNECTION.execute("SELECT * FROM admins")
+        cursor = await _execute("SELECT * FROM admins")
         columns = ["tg_id", "username", "added_by", "added_at"]
-        backup_data["admins"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        backup_data["admins"] = [dict(zip(columns, row)) for row in await _fetchall(cursor)]
         
         # Moderators
-        cursor = await DB_CONNECTION.execute("SELECT * FROM moderators")
+        cursor = await _execute("SELECT * FROM moderators")
         columns = ["tg_id", "username", "added_by", "added_at"]
-        backup_data["moderators"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        backup_data["moderators"] = [dict(zip(columns, row)) for row in await _fetchall(cursor)]
         
         # Tournaments
-        cursor = await DB_CONNECTION.execute("SELECT * FROM tournaments")
+        cursor = await _execute("SELECT * FROM tournaments")
         columns = ["id", "name", "description", "date_time", "max_players", "prize", "created_at"]
-        backup_data["tournaments"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        backup_data["tournaments"] = [dict(zip(columns, row)) for row in await _fetchall(cursor)]
         
         # Channel settings
-        cursor = await DB_CONNECTION.execute("SELECT * FROM channel_settings WHERE id = 1")
+        cursor = await _execute("SELECT * FROM channel_settings WHERE id = 1")
         columns = ["id", "channel_link", "discord_link", "require_subscription", "created_at"]
-        row = await cursor.fetchone()
+        row = await _fetchone(cursor)
         if row:
             backup_data["channel_settings"] = dict(zip(columns, row))
         
         # Welcome messages
-        cursor = await DB_CONNECTION.execute("SELECT * FROM welcome_messages")
+        cursor = await _execute("SELECT * FROM welcome_messages")
         columns = ["id", "message", "is_active", "created_at"]
-        backup_data["welcome_messages"] = [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        backup_data["welcome_messages"] = [dict(zip(columns, row)) for row in await _fetchall(cursor)]
         
         # Superuser settings
-        cursor = await DB_CONNECTION.execute("SELECT * FROM superuser_settings WHERE id = 1")
+        cursor = await _execute("SELECT * FROM superuser_settings WHERE id = 1")
         columns = ["id", "password", "created_at"]
-        row = await cursor.fetchone()
+        row = await _fetchone(cursor)
         if row:
             backup_data["superuser_settings"] = dict(zip(columns, row))
         
@@ -635,44 +672,44 @@ async def restore_from_backup(backup_json):
         data = json.loads(backup_json)
         
         # Clear existing data
-        await DB_CONNECTION.execute("DELETE FROM users")
-        await DB_CONNECTION.execute("DELETE FROM admins")
-        await DB_CONNECTION.execute("DELETE FROM moderators")
-        await DB_CONNECTION.execute("DELETE FROM tournaments")
-        await DB_CONNECTION.execute("DELETE FROM welcome_messages")
-        await DB_CONNECTION.commit()
+        await _execute("DELETE FROM users")
+        await _execute("DELETE FROM admins")
+        await _execute("DELETE FROM moderators")
+        await _execute("DELETE FROM tournaments")
+        await _execute("DELETE FROM welcome_messages")
+        await _commit()
         
         # Restore users
         for user in data.get("users", []):
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (user["tg_id"], user["username"], user["epic"], user["discord"], user["rank"], user["peak_rank"], user.get("tracker", ""), user.get("created_at", ""))
             )
         
         # Restore admins
         for admin in data.get("admins", []):
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT OR REPLACE INTO admins (tg_id, username, added_by, added_at) VALUES (?, ?, ?, ?)",
                 (admin["tg_id"], admin["username"], admin["added_by"], admin["added_at"])
             )
         
         # Restore moderators
         for mod in data.get("moderators", []):
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT OR REPLACE INTO moderators (tg_id, username, added_by, added_at) VALUES (?, ?, ?, ?)",
                 (mod["tg_id"], mod["username"], mod["added_by"], mod["added_at"])
             )
         
         # Restore tournaments
         for tour in data.get("tournaments", []):
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT INTO tournaments (id, name, description, date_time, max_players, prize, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (tour["id"], tour["name"], tour["description"], tour["date_time"], tour["max_players"], tour["prize"], tour["created_at"])
             )
         
         # Restore welcome messages
         for wm in data.get("welcome_messages", []):
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT INTO welcome_messages (id, message, is_active, created_at) VALUES (?, ?, ?, ?)",
                 (wm["id"], wm["message"], wm["is_active"], wm["created_at"])
             )
@@ -680,7 +717,7 @@ async def restore_from_backup(backup_json):
         # Restore channel settings
         cs = data.get("channel_settings")
         if cs:
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT OR REPLACE INTO channel_settings (id, channel_link, discord_link, require_subscription) VALUES (1, ?, ?, ?)",
                 (cs["channel_link"], cs["discord_link"], cs["require_subscription"])
             )
@@ -688,12 +725,12 @@ async def restore_from_backup(backup_json):
         # Restore superuser settings
         su = data.get("superuser_settings")
         if su:
-            await DB_CONNECTION.execute(
+            await _execute(
                 "INSERT OR REPLACE INTO superuser_settings (id, password) VALUES (1, ?)",
                 (su["password"],)
             )
         
-        await DB_CONNECTION.commit()
+        await _commit()
         await log_bot("RESTORE", f"Восстановлено из бэкапа: {len(data.get('users', []))} пользователей")
         
         return True
@@ -705,14 +742,14 @@ async def restore_from_backup(backup_json):
 async def get_backup_count():
     """Получить количество записей для бэкапа"""
     try:
-        users = await DB_CONNECTION.execute("SELECT COUNT(*) FROM users")
-        admins = await DB_CONNECTION.execute("SELECT COUNT(*) FROM admins")
-        tournaments = await DB_CONNECTION.execute("SELECT COUNT(*) FROM tournaments")
+        users_cursor = await _execute("SELECT COUNT(*) FROM users")
+        admins_cursor = await _execute("SELECT COUNT(*) FROM admins")
+        tournaments_cursor = await _execute("SELECT COUNT(*) FROM tournaments")
         
         return {
-            "users": (await users.fetchone())[0],
-            "admins": (await admins.fetchone())[0],
-            "tournaments": (await tournaments.fetchone())[0],
+            "users": (await _fetchone(users_cursor))[0],
+            "admins": (await _fetchone(admins_cursor))[0],
+            "tournaments": (await _fetchone(tournaments_cursor))[0],
         }
     except Exception as e:
         return {"users": 0, "admins": 0, "tournaments": 0}
