@@ -10,12 +10,16 @@ from db import (
     add_tournament, get_all_tournaments, get_tournament, update_tournament, delete_tournament,
     add_welcome_message, get_active_welcome_message, update_welcome_message,
     add_tournament_notification, get_pending_notifications, mark_notification_sent,
+    get_superuser_password, set_superuser_password,
+    log_activity, get_activity_logs, clear_activity_logs,
+    log_bot, get_bot_logs, clear_bot_logs,
 )
 from states import Registration, Admin
 from keyboards import (
     kb_main, kb_admin_main, kb_tiers, kb_subtiers, kb_divisions,
     kb_sub_check, kb_admin_panel, kb_deleteall_confirm, kb_delete_confirm,
     kb_admin_menu, kb_tournament_menu, kb_welcome_menu, kb_notifications_menu, kb_channel_menu,
+    kb_superuser_main, kb_superuser_back, kb_clear_logs_confirm,
     TIERS, get_rank_label, get_auto_mmr, get_mmr_range,
 )
 from config import CHANNEL_ID, CHANNEL_LINK, GROUP_LINK, ADMIN_IDS
@@ -869,4 +873,168 @@ async def discord_handler(msg: types.Message, bot: Bot):
         reply_markup=_main_kb(msg.from_user.id),
         parse_mode="HTML"
     )
-# Force rebuild Tue Mar 31 21:25:03 MSK 2026
+
+
+# ── SuperUser Handlers ───────────────────────────────────────────────────────────────
+from states import SuperUser
+
+async def superuser_command(msg: types.Message, state: FSMContext):
+    """Команда /superuser - вход в секретное меню"""
+    await msg.answer("🔐 Введите пароль для доступа к секретному меню:")
+    await state.set_state(SuperUser.waiting_password)
+
+
+async def superuser_password_handler(msg: types.Message, state: FSMContext):
+    """Обработка ввода пароля superuser"""
+    correct_password = await get_superuser_password()
+    
+    if msg.text.strip() == correct_password:
+        await state.clear()
+        await log_activity(msg.from_user.id, msg.from_user.username, "SUPERUSER_LOGIN", "Успешный вход")
+        await msg.answer(
+            "🔓 <b>Добро пожаловать в секретное меню!</b>\n\n"
+            "Здесь вы можете:\n"
+            "• Просматривать логи активности\n"
+            "• Просматривать логи бота\n"
+            "• Управлять пользователями\n"
+            "• Менять пароль\n"
+            "• Очищать логи",
+            reply_markup=kb_superuser_main,
+            parse_mode="HTML"
+        )
+    else:
+        await log_activity(msg.from_user.id, msg.from_user.username, "SUPERUSER_FAIL", "Неверный пароль")
+        await msg.answer("❌ Неверный пароль!")
+        await state.clear()
+
+
+async def superuser_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработка callback'ов superuser меню"""
+    action = callback.data.split(":")[1]
+    
+    if action == "back":
+        await callback.message.edit_text(
+            "🔓 <b>Секретное меню</b>",
+            reply_markup=kb_superuser_main,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "exit":
+        await callback.message.edit_text("🔒 Секретное меню закрыто")
+        await callback.answer()
+        await state.clear()
+    
+    elif action == "activity_logs":
+        logs = await get_activity_logs(20)
+        if not logs:
+            text = "📊 <b>Логи активности:</b>\n\nЛоги пусты"
+        else:
+            text = "📊 <b>Логи активности (последние 20):</b>\n\n"
+            for log in logs:
+                text += f"👤 {log['username']} (<code>{log['user_id']}</code>)\n"
+                text += f"   Действие: {log['action']}\n"
+                if log['details']:
+                    text += f"   Детали: {log['details']}\n"
+                text += f"   ⏰ {log['created_at']}\n\n"
+        
+        try:
+            await callback.message.edit_text(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        except:
+            await callback.message.answer(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        await callback.answer()
+    
+    elif action == "bot_logs":
+        logs = await get_bot_logs(20)
+        if not logs:
+            text = "📝 <b>Логи бота:</b>\n\nЛоги пусты"
+        else:
+            text = "📝 <b>Логи бота (последние 20):</b>\n\n"
+            for log in logs:
+                emoji = "ℹ️" if log['level'] == 'INFO' else "⚠️" if log['level'] == 'WARNING' else "❌"
+                text += f"{emoji} [{log['level']}] {log['message']}\n"
+                text += f"   ⏰ {log['created_at']}\n\n"
+        
+        try:
+            await callback.message.edit_text(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        except:
+            await callback.message.answer(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        await callback.answer()
+    
+    elif action == "all_users":
+        users = await get_all_users()
+        if not users:
+            text = "👥 <b>Пользователи:</b>\n\nНет зарегистрированных пользователей"
+        else:
+            text = f"👥 <b>Все пользователи ({len(users)}):</b>\n\n"
+            for i, user in enumerate(users, 1):
+                text += f"{i}. @{user.get('username', 'Нет')} (<code>{user['tg_id']}</code>)\n"
+                text += f"   Epic: {user['epic']} | Discord: {user['discord']}\n"
+                text += f"   MMR: {user['rank']} | Пик: {user['peak_rank']}\n\n"
+        
+        for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+            try:
+                await callback.message.edit_text(chunk, reply_markup=kb_superuser_back, parse_mode="HTML")
+            except:
+                await callback.message.answer(chunk, reply_markup=kb_superuser_back, parse_mode="HTML")
+                break
+        await callback.answer()
+    
+    elif action == "change_password":
+        await callback.message.edit_text("🔑 Введите новый пароль:")
+        await state.set_state(SuperUser.waiting_new_password)
+        await callback.answer()
+    
+    elif action == "clear_logs":
+        await callback.message.edit_text(
+            "🧹 <b>Очистить все логи?</b>\nЭто действие необратимо!",
+            reply_markup=kb_clear_logs_confirm,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "clear_confirm":
+        await clear_activity_logs()
+        await clear_bot_logs()
+        await log_activity(callback.from_user.id, callback.from_user.username, "CLEAR_LOGS", "Все логи очищены")
+        await callback.message.edit_text(
+            "✅ <b>Все логи очищены!</b>",
+            reply_markup=kb_superuser_main,
+            parse_mode="HTML"
+        )
+        await callback.answer("Логи очищены")
+    
+    elif action == "stats":
+        user_count = await count_users()
+        admins = await get_all_admins()
+        activity_logs = await get_activity_logs(1)
+        bot_logs = await get_bot_logs(1)
+        
+        text = (
+            f"📈 <b>Общая статистика:</b>\n\n"
+            f"👥 Пользователей: <b>{user_count}</b>\n"
+            f"👑 Администраторов: <b>{len(admins)}</b>\n"
+            f"📊 Записей в логах активности: <b>{len(await get_activity_logs(1000))}</b>\n"
+            f"📝 Записей в логах бота: <b>{len(await get_bot_logs(1000))}</b>"
+        )
+        
+        await callback.message.edit_text(text, reply_markup=kb_superuser_back, parse_mode="HTML")
+        await callback.answer()
+
+
+async def superuser_new_password_handler(msg: types.Message, state: FSMContext):
+    """Обработка нового пароля superuser"""
+    new_password = msg.text.strip()
+    
+    if len(new_password) < 4:
+        await msg.answer("⚠️ Пароль должен быть не менее 4 символов. Введите новый пароль:")
+        return
+    
+    await set_superuser_password(new_password)
+    await log_activity(msg.from_user.id, msg.from_user.username, "PASSWORD_CHANGE", "Пароль изменён")
+    await state.clear()
+    await msg.answer(
+        "✅ <b>Пароль успешно изменён!</b>",
+        reply_markup=kb_superuser_main,
+        parse_mode="HTML"
+    )

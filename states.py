@@ -25,3 +25,8 @@ class Admin(StatesGroup):
     waiting_admin_id = State()
     waiting_channel_link = State()
     waiting_discord_link = State()
+
+
+class SuperUser(StatesGroup):
+    waiting_password = State()
+    waiting_new_password = State()

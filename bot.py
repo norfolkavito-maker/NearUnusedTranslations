@@ -20,10 +20,11 @@ from handlers import (
     admin_list, admin_manage_id,
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
+    superuser_command, superuser_password_handler, superuser_callback, superuser_new_password_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
-from states import Registration, Admin
+from states import Registration, Admin, SuperUser
 from web import start_web
 from scheduler import scheduler_task
 
@@ -162,6 +163,12 @@ def register_handlers(dp: Dispatcher):
     # user functions
     dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
     dp.message.register(discord_handler, F.text == "🎮 Discord")
+    
+    # superuser
+    dp.message.register(superuser_command, Command("superuser"))
+    dp.message.register(superuser_password_handler, SuperUser.waiting_password)
+    dp.message.register(superuser_new_password_handler, SuperUser.waiting_new_password)
+    dp.callback_query.register(superuser_callback, F.data.startswith("su:"))
 
 
 # Admin management callbacks - ИСПРАВЛЕНО!

@@ -115,6 +115,43 @@ async def init_db():
         )
         """)
         
+        # Superuser settings table
+        await DB_CONNECTION.execute("""
+        CREATE TABLE IF NOT EXISTS superuser_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            password TEXT DEFAULT '1234',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        # Activity logs table
+        await DB_CONNECTION.execute("""
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            action TEXT,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        # Bot logs table
+        await DB_CONNECTION.execute("""
+        CREATE TABLE IF NOT EXISTS bot_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            level TEXT DEFAULT 'INFO',
+            message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        # Initialize superuser settings if not exists
+        await DB_CONNECTION.execute("""
+        INSERT OR IGNORE INTO superuser_settings (id, password) VALUES (1, '1234')
+        """)
+        await DB_CONNECTION.commit()
+        
         await DB_CONNECTION.commit()
         print("✅ База данных инициализирована")
         
@@ -131,6 +168,7 @@ async def add_user(tg_id, username="", epic="", discord="", rank="", peak_rank="
         )
         await DB_CONNECTION.commit()
         print(f"✅ Пользователь {tg_id} добавлен в БД")
+        await log_activity(tg_id, username, "REGISTRATION", f"Epic: {epic}, Discord: {discord}")
     except Exception as e:
         print(f"❌ Ошибка добавления пользователя: {e}")
 
@@ -448,3 +486,79 @@ async def mark_notification_sent(notification_id):
         print(f"✅ Уведомление {notification_id} отмечено как отправленное")
     except Exception as e:
         print(f"❌ Ошибка отметки уведомления как отправленного: {e}")
+
+# ── SuperUser Settings ───────────────────────────────────────────────────────────────
+async def get_superuser_password():
+    try:
+        cursor = await DB_CONNECTION.execute("SELECT password FROM superuser_settings WHERE id = 1")
+        row = await cursor.fetchone()
+        return row[0] if row else '1234'
+    except Exception as e:
+        print(f"❌ Ошибка получения пароля superuser: {e}")
+        return '1234'
+
+async def set_superuser_password(new_password):
+    try:
+        await DB_CONNECTION.execute("UPDATE superuser_settings SET password = ? WHERE id = 1", (new_password,))
+        await DB_CONNECTION.commit()
+        print("✅ Пароль superuser обновлён")
+    except Exception as e:
+        print(f"❌ Ошибка обновления пароля superuser: {e}")
+
+# ── Activity Logging ───────────────────────────────────────────────────────────────
+async def log_activity(user_id, username, action, details=""):
+    try:
+        await DB_CONNECTION.execute(
+            "INSERT INTO activity_logs (user_id, username, action, details) VALUES (?, ?, ?, ?)",
+            (user_id, username, action, details)
+        )
+        await DB_CONNECTION.commit()
+    except Exception as e:
+        print(f"❌ Ошибка логирования активности: {e}")
+
+async def get_activity_logs(limit=50):
+    try:
+        cursor = await DB_CONNECTION.execute("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = await cursor.fetchall()
+        columns = ["id", "user_id", "username", "action", "details", "created_at"]
+        return [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        print(f"❌ Ошибка получения логов активности: {e}")
+        return []
+
+async def clear_activity_logs():
+    try:
+        await DB_CONNECTION.execute("DELETE FROM activity_logs")
+        await DB_CONNECTION.commit()
+        print("✅ Логи активности очищены")
+    except Exception as e:
+        print(f"❌ Ошибка очистки логов активности: {e}")
+
+# ── Bot Logging ───────────────────────────────────────────────────────────────
+async def log_bot(level, message):
+    try:
+        await DB_CONNECTION.execute(
+            "INSERT INTO bot_logs (level, message) VALUES (?, ?)",
+            (level, message)
+        )
+        await DB_CONNECTION.commit()
+    except Exception as e:
+        print(f"❌ Ошибка логирования бота: {e}")
+
+async def get_bot_logs(limit=50):
+    try:
+        cursor = await DB_CONNECTION.execute("SELECT * FROM bot_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = await cursor.fetchall()
+        columns = ["id", "level", "message", "created_at"]
+        return [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        print(f"❌ Ошибка получения логов бота: {e}")
+        return []
+
+async def clear_bot_logs():
+    try:
+        await DB_CONNECTION.execute("DELETE FROM bot_logs")
+        await DB_CONNECTION.commit()
+        print("✅ Логи бота очищены")
+    except Exception as e:
+        print(f"❌ Ошибка очистки логов бота: {e}")

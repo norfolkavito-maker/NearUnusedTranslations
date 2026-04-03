@@ -191,3 +191,23 @@ def kb_divisions(prefix: str, tier_idx: int, sub: int) -> InlineKeyboardMarkup:
         )])
     buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=f"rsb:{prefix}:{tier_idx}")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# ── SuperUser Keyboards ───────────────────────────────────────────────────────────────
+kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📊 Логи активности", callback_data="su:activity_logs")],
+    [InlineKeyboardButton(text="📝 Логи бота", callback_data="su:bot_logs")],
+    [InlineKeyboardButton(text="👥 Все пользователи", callback_data="su:all_users")],
+    [InlineKeyboardButton(text="🔑 Сменить пароль", callback_data="su:change_password")],
+    [InlineKeyboardButton(text="🧹 Очистить логи", callback_data="su:clear_logs")],
+    [InlineKeyboardButton(text="📈 Общая статистика", callback_data="su:stats")],
+    [InlineKeyboardButton(text="🚪 Выйти", callback_data="su:exit")],
+])
+
+kb_superuser_back = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")],
+])
+
+kb_clear_logs_confirm = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="🗑 Очистить всё", callback_data="su:clear_confirm")],
+    [InlineKeyboardButton(text="◀️ Отмена", callback_data="su:back")],
+])
