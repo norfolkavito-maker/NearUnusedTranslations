@@ -46,15 +46,32 @@ async def _main_kb(user_id: int):
 
 # ── /start ───────────────────────────────────────────────────────────────────
 async def start_handler(msg: types.Message):
-    welcome = await get_active_welcome_message()
-    welcome_text = welcome["message"] if welcome else (
-        "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
-        "Команда <b>📋 Мои данные</b> покажет твою анкету."
-    )
+    try:
+        welcome = await get_active_welcome_message()
+        if welcome and welcome.get("message"):
+            welcome_text = welcome["message"]
+        else:
+            welcome_text = (
+                "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
+                "Команда <b>📋 Мои данные</b> покажет твою анкету."
+            )
+    except Exception as e:
+        print(f"Error getting welcome message: {e}")
+        welcome_text = (
+            "👋 Привет! Нажми <b>🎮 Регистрация</b> чтобы участвовать в турнире.\n"
+            "Команда <b>📋 Мои данные</b> покажет твою анкету."
+        )
+    
+    try:
+        kb = await _main_kb(msg.from_user.id)
+    except Exception as e:
+        print(f"Error building keyboard: {e}")
+        from keyboards import kb_main
+        kb = kb_main
     
     await msg.answer(
         welcome_text,
-        reply_markup=await _main_kb(msg.from_user.id),
+        reply_markup=kb,
         parse_mode="HTML"
     )
 
