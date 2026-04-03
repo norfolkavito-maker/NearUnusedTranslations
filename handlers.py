@@ -351,6 +351,13 @@ async def _save_and_finish_msg(msg: types.Message, state: FSMContext, peak_rank:
 
 
 # ── /me ──────────────────────────────────────────────────────────────────────
+kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
+    [
+        InlineKeyboardButton(text="✏️ Редактировать", callback_data="mydata:edit"),
+        InlineKeyboardButton(text="🗑 Удалить", callback_data="delete_self:yes"),
+    ],
+])
+
 async def me_handler(msg: types.Message):
     user = await get_user(msg.from_user.id)
     if not user:
@@ -366,7 +373,8 @@ async def me_handler(msg: types.Message):
         f"4️⃣ Пиковый MMR: <b>{user['peak_rank']}</b>\n"
         f"{tracker_line}",
         parse_mode="HTML",
-        disable_web_page_preview=True
+        disable_web_page_preview=True,
+        reply_markup=kb_my_data
     )
 
 
@@ -1049,10 +1057,13 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
 
 
 # ── Discord Handler ───────────────────────────────────────────────────────────────
-async def discord_handler(msg: types.Message, bot: Bot):
+async def discord_handler(msg: types.Message):
     # Get Discord link from channel settings or use default
     settings = await get_channel_settings()
-    discord_link = settings.get("discord_link", "https://discord.gg/your-server")
+    if settings:
+        discord_link = settings.get("discord_link", "https://discord.gg/your-server")
+    else:
+        discord_link = "https://discord.gg/your-server"
     
     await msg.answer(
         f"🎮 <b>Наш Discord сервер:</b>\n\n"

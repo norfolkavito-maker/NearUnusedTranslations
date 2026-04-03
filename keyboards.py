@@ -104,18 +104,25 @@ def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarku
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="📋 Список участников", callback_data="adm:list")],
-    [InlineKeyboardButton(text="🎮 Удобный список игроков", callback_data="adm:players")],
-    [InlineKeyboardButton(text="👥 Управление админами", callback_data="adm:admins")],
-    [InlineKeyboardButton(text="📢 Настройки канала", callback_data="adm:channel")],
-    [InlineKeyboardButton(text="🏆 Управление турнирами", callback_data="adm:tournaments")],
-    [InlineKeyboardButton(text="📝 Приветственное сообщение", callback_data="adm:welcome")],
-    [InlineKeyboardButton(text="📝 Сообщение после регистрации", callback_data="adm:post_reg_msg")],
-    [InlineKeyboardButton(text="⚙️ Настройки регистрации", callback_data="adm:reg_settings")],
-    [InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications")],
     [
-        InlineKeyboardButton(text="🗑 Удалить игрока", callback_data="adm:kick"),
-        InlineKeyboardButton(text="💥 Удалить всех", callback_data="adm:deleteall"),
+        InlineKeyboardButton(text="📋 Участники", callback_data="adm:list"),
+        InlineKeyboardButton(text="🎮 Игроки", callback_data="adm:players"),
+    ],
+    [
+        InlineKeyboardButton(text="👥 Админы", callback_data="adm:admins"),
+        InlineKeyboardButton(text="📢 Канал", callback_data="adm:channel"),
+    ],
+    [
+        InlineKeyboardButton(text="🏆 Турниры", callback_data="adm:tournaments"),
+        InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications"),
+    ],
+    [
+        InlineKeyboardButton(text="📝 Приветствие", callback_data="adm:welcome"),
+        InlineKeyboardButton(text="📝 После рег.", callback_data="adm:post_reg_msg"),
+    ],
+    [
+        InlineKeyboardButton(text="⚙️ Настройки рег.", callback_data="adm:reg_settings"),
+        InlineKeyboardButton(text="🗑 Удалить", callback_data="adm:kick"),
     ],
 ])
 
