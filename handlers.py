@@ -18,6 +18,7 @@ from db import (
     create_backup, restore_from_backup, get_backup_count,
     get_registration_settings, update_registration_settings,
     add_post_registration_message, get_active_post_registration_message, update_post_registration_message,
+    update_user_field,
 )
 from states import Registration, Admin, ContactAdmin, SuperUser
 from keyboards import (
@@ -25,7 +26,7 @@ from keyboards import (
     kb_sub_check, kb_admin_panel, kb_deleteall_confirm, kb_delete_confirm,
     kb_admin_menu, kb_tournament_menu, kb_welcome_menu, kb_notifications_menu, kb_channel_menu,
     kb_superuser_main, kb_superuser_back, kb_clear_logs_confirm,
-    kb_post_reg_menu, kb_reg_settings,
+    kb_post_reg_menu, kb_reg_settings, kb_my_data,
     TIERS, get_rank_label, get_auto_mmr, get_mmr_range,
 )
 from config import CHANNEL_ID, CHANNEL_LINK, GROUP_LINK, ADMIN_IDS
@@ -352,12 +353,13 @@ async def _save_and_finish_msg(msg: types.Message, state: FSMContext, peak_rank:
 
 
 # ── /me ──────────────────────────────────────────────────────────────────────
-kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="✏️ Редактировать", callback_data="mydata:edit"),
-        InlineKeyboardButton(text="🗑 Удалить", callback_data="delete_self:yes"),
-    ],
-])
+EDIT_FIELDS = {
+    "epic": ("Epic ID", "✏️ Введи новый Epic ID:"),
+    "discord": ("Discord", "✏️ Введи новый Discord (например User#1234):"),
+    "rank": ("Актуальный MMR", "✏️ Введи новый актуальный MMR:"),
+    "peak": ("Пиковый MMR", "✏️ Введи новый пиковый MMR:"),
+    "tracker": ("RL Tracker", "✏️ Введи новую ссылку на RL Tracker:"),
+}
 
 async def me_handler(msg: types.Message):
     user = await get_user(msg.from_user.id)
@@ -377,6 +379,86 @@ async def me_handler(msg: types.Message):
         disable_web_page_preview=True,
         reply_markup=kb_my_data
     )
+
+
+# ── My Data Edit Callbacks ──────────────────────────────────────────────────
+async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработка кнопок редактирования профиля"""
+    from states import MyData
+    _, field = callback.data.split(":")
+    field_map = {
+        "edit_epic": "epic",
+        "edit_discord": "discord",
+        "edit_rank": "rank",
+        "edit_peak": "peak_rank",
+        "edit_tracker": "tracker",
+    }
+    field_db = field_map.get(field)
+    if not field_db:
+        await callback.answer("Неизвестное поле")
+        return
+    
+    label, prompt = EDIT_FIELDS.get(field_db.split("_")[0], (field_db, "Введите новое значение:"))
+    
+    await callback.message.edit_text(
+        f"✏️ <b>Редактирование: {label}</b>\n\n{prompt}",
+        parse_mode="HTML"
+    )
+    
+    state_map = {
+        "epic": MyData.waiting_epic,
+        "discord": MyData.waiting_discord,
+        "rank": MyData.waiting_rank,
+        "peak_rank": MyData.waiting_peak_rank,
+        "tracker": MyData.waiting_tracker,
+    }
+    await state.set_state(state_map.get(field_db))
+    await state.update_data(edit_field=field_db)
+    await callback.answer()
+
+
+async def my_data_back_callback(callback: CallbackQuery, state: FSMContext):
+    """Кнопка назад при редактировании"""
+    await state.clear()
+    await callback.message.edit_text("Отмена редактирования")
+    await callback.answer()
+
+
+# ── My Data Edit Message Handlers ───────────────────────────────────────────
+FIELD_MAP_EDIT = {
+    "epic": "epic",
+    "discord": "discord",
+    "rank": "rank",
+    "peak_rank": "peak_rank",
+    "tracker": "tracker",
+}
+
+async def my_data_edit_handler(msg: types.Message, state: FSMContext):
+    """Обработка ввода нового значения"""
+    data = await state.get_data()
+    field = data.get("edit_field")
+    if not field or field not in FIELD_MAP_EDIT:
+        await msg.answer("⚠️ Ошибка. Нажми /start и попробуй снова.")
+        await state.clear()
+        return
+    
+    value = msg.text.strip()
+    success = await update_user_field(msg.from_user.id, FIELD_MAP_EDIT[field], value)
+    
+    if success:
+        # Map field name to label
+        label_map = {"epic": "Epic ID", "discord": "Discord", "rank": "Актуальный MMR", "peak_rank": "Пиковый MMR", "tracker": "RL Tracker"}
+        label = label_map.get(field, field)
+        await msg.answer(
+            f"✅ <b>{label}</b> обновлён!\n\nНовое значение: <b>{value}</b>",
+            reply_markup=kb_my_data,
+            parse_mode="HTML"
+        )
+        await log_activity(msg.from_user.id, msg.from_user.username, "EDIT_PROFILE", f"Изменён {label}: {value}")
+    else:
+        await msg.answer("❌ Ошибка при обновлении. Попробуй ещё раз.")
+    
+    await state.clear()
 
 
 # ── Админ-панель ─────────────────────────────────────────────────────────────

@@ -1,6 +1,13 @@
 from aiogram.fsm.state import State, StatesGroup
 
 
+class MyData(StatesGroup):
+    waiting_epic = State()
+    waiting_discord = State()
+    waiting_rank = State()
+    waiting_peak_rank = State()
+    waiting_tracker = State()
+
 class Registration(StatesGroup):
     epic_id = State()
     discord = State()

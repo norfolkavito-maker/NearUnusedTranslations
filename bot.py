@@ -24,10 +24,11 @@ from handlers import (
     superuser_command, superuser_password_handler, superuser_callback, superuser_new_password_handler,
     superuser_restore_handler,
     post_reg_message_edit,
+    my_data_edit_callback, my_data_back_callback, my_data_edit_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
-from states import Registration, Admin, SuperUser, ContactAdmin
+from states import Registration, Admin, SuperUser, ContactAdmin, MyData
 from web import start_web
 from scheduler import scheduler_task
 
@@ -178,6 +179,11 @@ def register_handlers(dp: Dispatcher):
     
     # post registration message
     dp.message.register(post_reg_message_edit, Admin.waiting_post_reg_message)
+    
+    # my data editing
+    dp.callback_query.register(my_data_edit_callback, F.data.startswith("mydata:edit_"))
+    dp.callback_query.register(my_data_back_callback, F.data == "mydata:back")
+    dp.message.register(my_data_edit_handler, MyData.waiting_epic, MyData.waiting_discord, MyData.waiting_rank, MyData.waiting_peak_rank, MyData.waiting_tracker)
 
 
 # Admin management callbacks

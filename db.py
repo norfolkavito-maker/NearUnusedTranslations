@@ -279,6 +279,21 @@ async def delete_user(tg_id):
     except Exception as e:
         print(f"❌ Ошибка удаления пользователя: {e}")
 
+async def update_user_field(tg_id, field, value):
+    """Обновить конкретное поле пользователя"""
+    valid_fields = ["epic", "discord", "rank", "peak_rank", "tracker"]
+    if field not in valid_fields:
+        print(f"❌ Неверное поле: {field}")
+        return False
+    try:
+        await _execute(f"UPDATE users SET {field} = ? WHERE tg_id = ?", (value, tg_id))
+        await _commit()
+        print(f"✅ Поле {field} пользователя {tg_id} обновлено")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка обновления поля {field}: {e}")
+        return False
+
 async def delete_all_users():
     try:
         await _execute("DELETE FROM users")
