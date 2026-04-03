@@ -702,6 +702,31 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
 
 
 # ── Post Registration Message Handler ──────────────────────────────────────────
+async def post_reg_edit_callback(callback: CallbackQuery, state: FSMContext):
+    """Callback для редактирования сообщения после регистрации"""
+    await callback.answer("Режим редактирования сообщения после регистрации")
+    await callback.message.edit_text(
+        "📝 <b>Сообщение после регистрации</b>\n\n"
+        "Введите текст, который будет отправлен пользователю после успешной регистрации:",
+        parse_mode="HTML"
+    )
+    await state.set_state(Admin.waiting_post_reg_message)
+
+async def post_reg_view_callback(callback: CallbackQuery):
+    """Callback для просмотра сообщения после регистрации"""
+    from db import get_active_post_registration_message
+    msg_data = await get_active_post_registration_message()
+    if msg_data:
+        text = f"📝 <b>Текущее сообщение после регистрации:</b>\n\n{msg_data['message']}"
+    else:
+        text = "📝 Сообщение после регистрации не установлено"
+    
+    try:
+        await callback.message.edit_text(text, reply_markup=kb_post_reg_menu, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=kb_post_reg_menu, parse_mode="HTML")
+    await callback.answer()
+
 async def post_reg_message_edit(msg: types.Message, state: FSMContext):
     """Обработка ввода сообщения после регистрации"""
     message = msg.text.strip()
@@ -824,8 +849,7 @@ async def tournament_list(callback: CallbackQuery):
     
     text = "🏆 <b>Список турниров:</b>\n\n"
     for tour in tournaments:
-        status_emoji = "🟢" if tour["status"] == "upcoming" else "🔴" if tour["status"] == "completed" else "🟡"
-        text += f"{status_emoji} <b>{tour['name']}</b>\n"
+        text += f"🆔 <b>{tour['name']}</b> (ID: {tour['id']})\n"
         text += f"📅 {tour['date_time']}\n"
         if tour["max_players"]:
             text += f"👥 Макс. игроков: {tour['max_players']}\n"
@@ -1401,12 +1425,15 @@ async def superuser_new_password_handler(msg: types.Message, state: FSMContext):
 
 async def superuser_restore_handler(msg: types.Message, state: FSMContext):
     """Обработка восстановления из бэкапа (файл)"""
+    from aiogram import Bot
+    from config import TOKEN
     if not msg.document:
         await msg.answer("⚠️ Пожалуйста, отправьте JSON файл бэкапа.")
         return
     
     try:
         # Download the file
+        bot = Bot(token=TOKEN)
         file = await bot.get_file(msg.document.file_id)
         file_content = await bot.download_file(file.file_path)
         backup_json = file_content.decode('utf-8')

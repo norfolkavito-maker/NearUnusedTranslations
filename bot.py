@@ -24,6 +24,7 @@ from handlers import (
     superuser_command, superuser_password_handler, superuser_callback, superuser_new_password_handler,
     superuser_restore_handler,
     post_reg_message_edit,
+    post_reg_edit_callback, post_reg_view_callback,
     my_data_edit_callback, my_data_back_callback, my_data_edit_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
@@ -179,6 +180,10 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(my_data_edit_callback, F.data.startswith("mydata:edit_"))
     dp.callback_query.register(my_data_back_callback, F.data == "mydata:back")
     dp.message.register(my_data_edit_handler, MyData.waiting_epic, MyData.waiting_discord, MyData.waiting_rank, MyData.waiting_peak_rank, MyData.waiting_tracker)
+    
+    # post-registration message management
+    dp.callback_query.register(post_reg_edit_callback, F.data == "postreg:edit")
+    dp.callback_query.register(post_reg_view_callback, F.data == "postreg:view")
 
 
 # Admin management callbacks
