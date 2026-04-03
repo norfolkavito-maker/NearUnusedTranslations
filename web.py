@@ -103,20 +103,20 @@ async def start_web():
     app.router.add_route('GET', '/health', handle_health)
     
     runner = web.AppRunner(app)
-    
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', 5000)
     await site.start()
     print("🌐 Веб-панель запущена на порту 5000")
     
     # Wait forever but handle cleanup properly
-    stop_event = asyncio.Event()
     try:
-        await stop_event.wait()
+        while True:
+            await asyncio.sleep(3600)
     except (asyncio.CancelledError, GeneratorExit, KeyboardInterrupt):
         print("🛑 Веб-сервер останавливается...")
     finally:
         try:
+            await site.stop()
             await runner.cleanup()
             print("✅ Веб-сервер остановлен")
         except Exception as e:
