@@ -44,7 +44,8 @@ async def init_db():
             discord TEXT,
             rank TEXT,
             peak_rank TEXT,
-            tracker TEXT
+            tracker TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
         

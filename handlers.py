@@ -1,7 +1,7 @@
 from aiogram import types, Bot, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, StateFilter
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from db import (
     add_user, check_user, get_user, get_all_users, delete_user, delete_all_users, count_users,
@@ -84,7 +84,10 @@ async def sub_check_callback(callback: CallbackQuery, state: FSMContext, bot: Bo
     tg_id = callback.from_user.id
     if await check_user(tg_id):
         await callback.message.edit_text("✅ Ты уже зарегистрирован!")
-        await callback.answer()
+        try:
+            await callback.answer()
+        except Exception as e:
+            print(f"⚠️ Ошибка ответа на callback: {e}")
         return
 
     try:
@@ -94,13 +97,19 @@ async def sub_check_callback(callback: CallbackQuery, state: FSMContext, bot: Bo
         subscribed = True
 
     if not subscribed:
-        await callback.answer("❌ Ты ещё не подписался!", show_alert=True)
+        try:
+            await callback.answer("❌ Ты ещё не подписался!", show_alert=True)
+        except Exception as e:
+            print(f"⚠️ Ошибка ответа на callback: {e}")
         return
 
     await callback.message.edit_text("✅ Подписка подтверждена!")
     await _start_registration(callback.message)
     await state.set_state(Registration.epic_id)
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception as e:
+        print(f"⚠️ Ошибка ответа на callback: {e}")
 
 
 # ── Шаги регистрации ─────────────────────────────────────────────────────────

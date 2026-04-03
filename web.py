@@ -113,16 +113,16 @@ async def start_web():
     
     runner = web.AppRunner(app)
     
-    print("🌐 Веб-панель запущена на порту 5000")
-    
     try:
         await runner.setup()
         site = web.TCPSite(runner, '0.0.0.0', 5000)
         await site.start()
+        print("🌐 Веб-панель запущена на порту 5000")
+        # Ждём бесконечно - сервер должен работать постоянно
+        await asyncio.Event().wait()
     except Exception as e:
         print(f"Ошибка запуска веб-сервера: {e}")
     finally:
-        # Cleanup
         try:
             await runner.cleanup()
         except:
