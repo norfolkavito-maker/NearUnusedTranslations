@@ -1396,6 +1396,56 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
         )
         await callback.answer("Доступ к админ-панели предоставлен")
     
+    elif action == "inject_players":
+        """Автоматическая регистрация 13 игроков"""
+        PLAYERS = [
+            (820870350, "valiauh", "de7cce031eb04b0db7d2c8922738bbc7", "valiauh", "Чемпион 2 / Дивизион 3 (1248 MMR)", "ГЧ1 (1537 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/SRG%20stormfv/overview"),
+            (853216552, "Cylics", "fe5a998215454a77b493d074e2c5234a", "pupupu67", "Чемпион 2 / Дивизион 2 (1215 MMR)", "ГЧ1 (1435 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/%C6%A6%E2%84%A8%C4%AC/overview?utm_source=landing&utm_medium=profile-link&utm_campaign=landing-v2"),
+            (892953049, "qwelyx", "Qwelyx.", "Walak.", "Чемпион 3 / Дивизион 1 (1315 MMR)", "ГЧ1 (1435 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/Qwelyx./overview"),
+            (984566385, "zxdaqwd", "g0tthejuice", "1006872", "Чемпион 1 / Дивизион 4 (1162 MMR)", "Чемпион 2 / Дивизион 4 (1282 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/g0tthejuice/overview"),
+            (1027866429, "almuted", "Schmurdya", "schmurdya", "MMR: 1070", "Чемпион 3 / Дивизион 2 (1335 MMR)", ""),
+            (1455661269, "CheSlychilos", "ForgetMyName_", "piredozzza", "Чемпион 1 / Дивизион 4 (1162 MMR)", "Чемпион 3 / Дивизион 3 (1372 MMR)", ""),
+            (1696948772, "furrynigger69", "Lev1k40", "levandosik_kakosik", "Чемпион 3 / Дивизион 1 (1315 MMR)", "Чемпион 3 / Дивизион 4 (1402 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/Lev1k40/overview"),
+            (2097749803, "Korrya76", "KORRYA_mc", "Korrya76", "Даймонд 1 / Дивизион 3 (873 MMR)", "Чемпион 1 / Дивизион 2 (1095 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/Korrya_Mc/overview"),
+            (5208295687, "M1rpe", "4f78a67a7f444bf19f82f7acc309c093", "okeokeoka", "Чемпион 2 / Дивизион 3 (1248 MMR)", "Чемпион 3 / Дивизион 1 (1315 MMR)", ""),
+            (5315781827, "dinilama", "Бля(", "mvnicx", "Чемпион 1 / Дивизион 1 (1075 MMR)", "Чемпион 1 / Дивизион 3 (1128 MMR)", ""),
+            (5975741277, "ribmus", "Buchptz", "ribmus", "Даймонд 3 / Дивизион 1 (995 MMR)", "Чемпион 1 / Дивизион 1 (1075 MMR)", ""),
+            (6424764691, "Саня", "w1nbl", "w1nbl_", "Чемпион 2 / Дивизион 1 (1195 MMR)", "Чемпион 2 / Дивизион 1 (1195 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/w1nbl/overview"),
+            (8420004944, "Popolovnik", "DSoymon4ik", "dsoymon4ik.", "Даймонд 3 / Дивизион 4 (1052 MMR)", "Чемпион 1 / Дивизион 1 (1075 MMR)", "https://rocketleague.tracker.network/rocket-league/profile/epic/DSoymon4ik/overview"),
+        ]
+        
+        await callback.message.edit_text("📥 <b>Инжект 13 игроков...</b>\nПодождите...", parse_mode="HTML")
+        await callback.answer()
+        
+        added = 0
+        skipped = 0
+        errors = 0
+        
+        for tg_id, username, epic, discord, rank, peak_rank, tracker in PLAYERS:
+            try:
+                if await check_user(tg_id):
+                    skipped += 1
+                    continue
+                await add_user(
+                    tg_id=tg_id, username=username, epic=epic,
+                    discord=discord, rank=rank, peak_rank=peak_rank, tracker=tracker
+                )
+                added += 1
+            except Exception as e:
+                errors += 1
+                print(f"Error adding player {username}: {e}")
+        
+        await log_activity(callback.from_user.id, callback.from_user.username, "INJECT_PLAYERS", f"Добавлено: {added}, Пропущено: {skipped}, Ошибок: {errors}")
+        
+        await callback.message.edit_text(
+            f"✅ <b>Инжект завершён!</b>\n\n"
+            f"➕ Добавлено: <b>{added}</b>\n"
+            f"⏭️ Пропущено: <b>{skipped}</b>\n"
+            f"❌ Ошибок: <b>{errors}</b>",
+            reply_markup=kb_superuser_main,
+            parse_mode="HTML"
+        )
+    
     elif action == "auto_backup":
         # Автоматический бэкап
         await callback.message.edit_text("💾 <b>Создание автоматического бэкапа...</b>")
