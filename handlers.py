@@ -1007,7 +1007,16 @@ async def admin_manage_id(msg: types.Message, state: FSMContext):
             except:
                 username = ""
             
+            # Добавляем в admins
             await add_admin(admin_id, username, msg.from_user.id)
+            
+            # Если пользователя нет в users — добавляем, чтобы он мог пользоваться ботом
+            if not await check_user(admin_id):
+                await add_user(
+                    tg_id=admin_id, username=username,
+                    epic="admin", discord="", rank="Админ", peak_rank="", tracker=""
+                )
+            
             await state.clear()
             await msg.answer(
                 f"✅ Пользователь <code>{admin_id}</code> добавлен в админы!",
