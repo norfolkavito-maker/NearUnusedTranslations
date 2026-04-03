@@ -17,6 +17,7 @@ from handlers import (
     tournament_create_players, tournament_create_prize, tournament_list,
     welcome_edit, welcome_view,
     notification_create_tournament_select, notification_tournament_selected, notification_create_message, notification_create_time,
+    broadcast_start, broadcast_send,
     admin_list, admin_manage_id,
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, contact_admins_message_handler, discord_handler,
@@ -145,8 +146,10 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(notification_create_tournament_select, F.data == "notif:create")
     dp.callback_query.register(notification_tournament_selected, F.data.startswith("notif:tour:"))
     dp.callback_query.register(pending_notifications_callback, F.data == "notif:list")
+    dp.callback_query.register(broadcast_start, F.data == "notif:broadcast")
     dp.message.register(notification_create_message, Admin.waiting_notification_message)
     dp.message.register(notification_create_time, Admin.waiting_notification_time)
+    dp.message.register(broadcast_send, Admin.waiting_broadcast_message)
     
     # admin management
     dp.callback_query.register(admin_add_callback, F.data == "admin:add")

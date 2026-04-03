@@ -25,6 +25,7 @@ class Admin(StatesGroup):
     waiting_admin_id = State()
     waiting_channel_link = State()
     waiting_discord_link = State()
+    waiting_broadcast_message = State()
 
 
 class ContactAdmin(StatesGroup):

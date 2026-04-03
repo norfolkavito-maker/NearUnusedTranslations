@@ -148,6 +148,7 @@ kb_welcome_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 kb_notifications_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="➕ Создать рассылку", callback_data="notif:create")],
+    [InlineKeyboardButton(text="📢 Рассылка всем пользователям", callback_data="notif:broadcast")],
     [InlineKeyboardButton(text="📋 Отложенные рассылки", callback_data="notif:list")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
@@ -199,6 +200,7 @@ kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="👥 Все пользователи", callback_data="su:all_users")],
     [InlineKeyboardButton(text="💾 Создать бэкап", callback_data="su:backup")],
     [InlineKeyboardButton(text="📂 Восстановить из бэкапа", callback_data="su:restore")],
+    [InlineKeyboardButton(text="⚙️ Войти в админ-панель", callback_data="su:admin_panel")],
     [InlineKeyboardButton(text="🔑 Сменить пароль", callback_data="su:change_password")],
     [InlineKeyboardButton(text="🧹 Очистить логи", callback_data="su:clear_logs")],
     [InlineKeyboardButton(text="📈 Общая статистика", callback_data="su:stats")],

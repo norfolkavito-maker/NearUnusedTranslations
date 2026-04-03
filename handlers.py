@@ -286,6 +286,31 @@ async def process_tracker(msg: types.Message, state: FSMContext):
         "🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира.",
         parse_mode="HTML"
     )
+    
+    # Уведомление админам о новом игроке
+    try:
+        from config import ADMIN_IDS
+        admins = await get_all_admins()
+        admin_ids = list(ADMIN_IDS) + [admin['tg_id'] for admin in admins]
+        admin_ids = list(set(admin_ids))
+        
+        notification_text = (
+            f"🎉 <b>Новый игрок зарегистрился!</b>\n\n"
+            f"👤 @{username} (<code>{tg_id}</code>)\n"
+            f"🎯 Epic: {data.get('epic', '')}\n"
+            f"💬 Discord: {data.get('discord', '')}\n"
+            f"🏆 MMR: {data.get('rank', '')}\n"
+            f"📊 Пик: {data.get('peak_rank', '')}"
+        )
+        
+        for admin_id in admin_ids:
+            try:
+                from bot import bot as bot_instance
+                await bot_instance.send_message(chat_id=admin_id, text=notification_text, parse_mode="HTML")
+            except Exception as e:
+                print(f"Failed to notify admin {admin_id}: {e}")
+    except Exception as e:
+        print(f"Error notifying admins about new player: {e}")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -704,6 +729,60 @@ async def notification_create_time(msg: types.Message, state: FSMContext):
     )
 
 
+# ── Broadcast to all users ─────────────────────────────────────────────────────
+async def broadcast_start(callback: CallbackQuery, state: FSMContext):
+    """Начало рассылки всем пользователям"""
+    await callback.message.edit_text(
+        "📢 <b>Рассылка всем пользователям</b>\n\n"
+        "Введите текст сообщения для рассылки:",
+        reply_markup=kb_admin_panel,
+        parse_mode="HTML"
+    )
+    await state.set_state(Admin.waiting_broadcast_message)
+    await callback.answer()
+
+
+async def broadcast_send(msg: types.Message, state: FSMContext, bot: Bot):
+    """Отправка рассылки всем пользователям"""
+    message = msg.text.strip()
+    
+    # Получаем всех пользователей
+    users = await get_all_users()
+    if not users:
+        await msg.answer("⚠️ Нет зарегистрированных пользователей для рассылки")
+        await state.clear()
+        return
+    
+    # Отправляем сообщение всем
+    success_count = 0
+    fail_count = 0
+    
+    await msg.answer(f"📢 <b>Начинаем рассылку...</b>\nВсего пользователей: {len(users)}", parse_mode="HTML")
+    
+    for user in users:
+        try:
+            await bot.send_message(
+                chat_id=user["tg_id"],
+                text=f"📢 <b>Рассылка от администратора:</b>\n\n{message}",
+                parse_mode="HTML"
+            )
+            success_count += 1
+        except Exception as e:
+            fail_count += 1
+            print(f"Failed to send to {user['tg_id']}: {e}")
+    
+    await state.clear()
+    await msg.answer(
+        f"✅ <b>Рассылка завершена!</b>\n\n"
+        f"📤 Отправлено: <b>{success_count}</b>\n"
+        f"❌ Ошибок: <b>{fail_count}</b>",
+        reply_markup=kb_admin_panel,
+        parse_mode="HTML"
+    )
+    
+    await log_activity(msg.from_user.id, msg.from_user.username, "BROADCAST", f"Отправлено: {success_count}, Ошибок: {fail_count}")
+
+
 # ── Admin Management ─────────────────────────────────────────────────────────────
 async def admin_manage_id(msg: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -1061,6 +1140,39 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
             parse_mode="HTML"
         )
         await callback.answer()
+    
+    elif action == "admin_panel":
+        # SuperUser получает доступ к админ-панели
+        await callback.message.edit_text(
+            f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{await count_users()}</b>",
+            reply_markup=kb_admin_panel,
+            parse_mode="HTML"
+        )
+        await callback.answer("Доступ к админ-панели предоставлен")
+    
+    elif action == "auto_backup":
+        # Автоматический бэкап
+        await callback.message.edit_text("💾 <b>Создание автоматического бэкапа...</b>")
+        await callback.answer()
+        
+        backup_json = await create_backup()
+        if backup_json:
+            counts = await get_backup_count()
+            from io import BytesIO
+            backup_bytes = BytesIO(backup_json.encode('utf-8'))
+            backup_bytes.name = f"auto_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            await callback.message.answer_document(
+                document=backup_bytes,
+                caption=f"💾 <b>Автоматический бэкап создан!</b>\n\n"
+                        f"👥 Пользователей: {counts['users']}\n"
+                        f"👑 Админов: {counts['admins']}\n"
+                        f"🏆 Турниров: {counts['tournaments']}",
+                parse_mode="HTML"
+            )
+            await callback.message.delete()
+        else:
+            await callback.message.edit_text("❌ Ошибка при создании бэкапа!", reply_markup=kb_superuser_back)
 
 
 async def superuser_new_password_handler(msg: types.Message, state: FSMContext):
