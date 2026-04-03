@@ -1,56 +1,49 @@
-import asyncio
 from aiohttp import web
-from openpyxl import Workbook
+import asyncio
 from db import get_all_users
-from datetime import datetime
-import io
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side
+from io import BytesIO
 
 
 async def index(request):
     users = await get_all_users()
-    if not users:
-        return web.Response(text="Никто ещё не зарегистрировался.", content_type="text/html")
     
     html = """
-    <!DOCTYPE html>
     <html>
     <head>
-        <meta charset="UTF-8">
-        <title>Участники турнира</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { border-collapse: collapse; width: 100%; }
+            body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+            h1 { color: #333; }
+            table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
             th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .rank { font-weight: bold; }
+            th { background: #4CAF50; color: white; }
+            tr:nth-child(even) { background: #f2f2f2; }
+            .export-btn { padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
         </style>
     </head>
     <body>
-        <h1>📋 Список участников турнира</h1>
+        <h1>🏆 EBKA Championship - Участники</h1>
+        <a class="export-btn" href="/export">📥 Экспорт в Excel</a>
         <table>
             <tr>
-                <th>№</th>
-                <th>Username</th>
-                <th>Epic Nickname</th>
-                <th>Discord</th>
-                <th>Rank</th>
-                <th>Peak Rank</th>
-                <th>Tracker</th>
-            </tr>
     """
     
-    for i, u in enumerate(users, 1):
-        html += f"""
-            <tr>
-                <td>{i}</td>
-                <td>{u.get('username', '—')}</td>
-                <td>{u['epic']}</td>
-                <td>{u['discord']}</td>
-                <td class="rank">{u['rank']}</td>
-                <td class="rank">{u['peak_rank']}</td>
-                <td>{u.get('tracker', '—')}</td>
-            </tr>
-        """
+    if users:
+        keys = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker"]
+        headers = ["Telegram ID", "Username", "Epic ID", "Discord", "MMR", "Пик MMR", "Tracker"]
+        for header in headers:
+            html += f"<th>{header}</th>"
+        html += "</tr>"
+        
+        for user in users:
+            html += "<tr>"
+            for key in keys:
+                val = user.get(key, "—") or "—"
+                html += f"<td>{val}</td>"
+            html += "</tr>"
+    else:
+        html += "</tr><tr><td colspan='7'>Нет участников</td></tr>"
     
     html += """
         </table>
@@ -58,43 +51,41 @@ async def index(request):
     </html>
     """
     
-    return web.Response(text=html, content_type="text/html")
+    return web.Response(text=html, content_type='text/html')
 
 
 async def export_excel(request):
     users = await get_all_users()
-    wb = Workbook()
+    
+    wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Участники"
     
-    headers = ["ID", "Username", "Epic", "Discord", "Rank", "Peak Rank", "Tracker"]
-    ws.append_row(headers)
+    headers = ["Telegram ID", "Username", "Epic ID", "Discord", "MMR", "Пик MMR", "Tracker"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = openpyxl.styles.PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
     
-    for i, u in enumerate(users, 1):
-        ws.append_row([
-            i,
-            u.get('username', ''),
-            u['epic'],
-            u['discord'],
-            u['rank'],
-            u['peak_rank'],
-            u.get('tracker', '')
-        ])
+    keys = ["tg_id", "username", "epic", "discord", "rank", "peak_rank", "tracker"]
+    for row_idx, user in enumerate(users, 2):
+        for col_idx, key in enumerate(keys, 1):
+            ws.cell(row=row_idx, column=col_idx, value=user.get(key, "—") or "—")
     
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
     return web.Response(
-        body=buf.read(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=participants.xlsx"}
+        body=output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=participants.xlsx'}
     )
 
 
 async def handle_health(request):
-    """Health check endpoint"""
-    return web.Response(text="OK", status=200)
+    return web.Response(text="OK")
 
 
 async def handle_participants(request):
@@ -113,17 +104,20 @@ async def start_web():
     
     runner = web.AppRunner(app)
     
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 5000)
+    await site.start()
+    print("🌐 Веб-панель запущена на порту 5000")
+    
+    # Wait forever but handle cleanup properly
+    stop_event = asyncio.Event()
     try:
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', 5000)
-        await site.start()
-        print("🌐 Веб-панель запущена на порту 5000")
-        # Ждём бесконечно - сервер должен работать постоянно
-        await asyncio.Event().wait()
-    except Exception as e:
-        print(f"Ошибка запуска веб-сервера: {e}")
+        await stop_event.wait()
+    except (asyncio.CancelledError, GeneratorExit, KeyboardInterrupt):
+        print("🛑 Веб-сервер останавливается...")
     finally:
         try:
             await runner.cleanup()
-        except:
-            pass
+            print("✅ Веб-сервер остановлен")
+        except Exception as e:
+            print(f"⚠️ Ошибка при остановке веб-сервера: {e}")
