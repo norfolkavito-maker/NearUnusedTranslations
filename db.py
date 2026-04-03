@@ -1,24 +1,36 @@
-import libsql_experimental as libsql
+import aiosqlite
 import os
 from config import TURSO_URL, TURSO_TOKEN
 
-# Turso Database Connection
+# Database Connection - временно вернем к SQLite
 async def get_db_connection():
-    """Подключение к Turso базе данных"""
+    """Подключение к базе данных"""
     try:
-        conn = libsql.connect("file.db", sync_url=TURSO_URL, auth_token=TURSO_TOKEN)
-        print(f"✅ Подключено к Turso: {TURSO_URL}")
+        # Пробуем разные пути для БД
+        if os.path.exists("/app/data"):
+            path = "/app/data/users.db"
+            print("✅ Используем /app/data для БД")
+        elif os.path.exists("/tmp"):
+            path = "/tmp/users.db"
+            print("✅ Используем /tmp для БД")
+        elif os.path.exists("./"):
+            path = "./users.db"
+            print("✅ Используем локальную директорию для БД")
+        else:
+            path = ":memory:"
+            print("⚠️ Используем in-memory БД")
+        
+        conn = await aiosqlite.connect(path)
         return conn
     except Exception as e:
-        print(f"❌ Ошибка подключения к Turso: {e}")
-        # Fallback to SQLite
-        return libsql.connect("file.db")
+        print(f"❌ Ошибка подключения к БД: {e}")
+        raise
 
 DB_CONNECTION = None
 
 async def init_db():
     global DB_CONNECTION
-    print(f"🗄️ Инициализация Turso базы данных...")
+    print(f"🗄️ Инициализация базы данных...")
     
     try:
         DB_CONNECTION = await get_db_connection()
@@ -103,7 +115,7 @@ async def init_db():
         """)
         
         await DB_CONNECTION.commit()
-        print("✅ База данных Turso инициализирована")
+        print("✅ База данных инициализирована")
         
     except Exception as e:
         print(f"❌ Ошибка инициализации БД: {e}")
