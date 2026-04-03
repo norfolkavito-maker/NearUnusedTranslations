@@ -14,6 +14,6 @@ CHANNEL_ID   = os.getenv("CHANNEL_ID", "@ebka_news")
 CHANNEL_LINK = os.getenv("CHANNEL_LINK", f"https://t.me/{os.getenv('CHANNEL_ID', 'ebka_news').lstrip('@')}")
 GROUP_LINK   = os.getenv("GROUP_LINK", "")
 
-# Turso Database (переменные настроены как TURSA_URL и TURSA_TOKEN)
-TURSO_URL = os.getenv("TURSA_URL", "")
-TURSO_TOKEN = os.getenv("TURSA_TOKEN", "")
+# Turso Database
+TURSO_URL = os.getenv("TURSO_URL", "")
+TURSO_TOKEN = os.getenv("TURSO_TOKEN", "")
