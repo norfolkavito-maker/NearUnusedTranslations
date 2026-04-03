@@ -687,8 +687,8 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Отменено")
     
     # Registration settings toggle
-    elif action.startswith("regset:"):
-        field = action.split(":")[1]
+    elif action in ("epic", "discord", "rank", "peak_rank", "tracker"):
+        field = action
         try:
             settings = await get_registration_settings()
             if not settings:
