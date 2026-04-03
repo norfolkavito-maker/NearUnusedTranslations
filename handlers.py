@@ -952,16 +952,16 @@ async def admin_list(callback: CallbackQuery):
 
 # ── Channel Settings Management ───────────────────────────────────────────────────
 async def channel_edit_link(msg: types.Message, state: FSMContext):
-    await update_channel_settings(channel_link=msg.text.strip())
     await state.clear()
+    await update_channel_settings(channel_link=msg.text.strip())
     await msg.answer(
-        "✅ Ссылка на каналы обновлена!",
+        "✅ Ссылка на канал обновлена!",
         reply_markup=kb_admin_panel
     )
 
 async def channel_edit_discord(msg: types.Message, state: FSMContext):
-    await update_channel_settings(discord_link=msg.text.strip())
     await state.clear()
+    await update_channel_settings(discord_link=msg.text.strip())
     await msg.answer(
         "✅ Discord ссылка обновлена!",
         reply_markup=kb_admin_panel
