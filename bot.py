@@ -189,21 +189,37 @@ def register_handlers(dp: Dispatcher):
 # Admin management callbacks
 async def admin_add_callback(callback: CallbackQuery, state: FSMContext):
     print(f"🎯 Кнопка 'Добавить админа' нажата!")
-    await callback.answer()
+    await callback.answer("Выбрано: Добавить админа")
     await state.set_state(Admin.waiting_admin_id)
     await state.update_data(admin_action="add")
     await callback.message.answer("📝 Введите ID пользователя для добавления в админы:")
 
 async def admin_remove_callback(callback: CallbackQuery, state: FSMContext):
     print(f"🎯 Кнопка 'Удалить админа' нажата!")
-    await callback.answer()
+    await callback.answer("Выбрано: Удалить админа")
     await state.set_state(Admin.waiting_admin_id)
     await state.update_data(admin_action="remove")
     await callback.message.answer("📝 Введите ID пользователя для удаления из админов:")
 
 # Tournament notifications callback
 async def tournament_notifications_callback(callback: CallbackQuery):
-    await callback.answer("🔔 Функция уведомлений турниров в разработке")
+    await callback.answer()
+    await callback.message.edit_text(
+        "🔔 <b>Уведомления турниров</b>\n\n"
+        "📢 Выберите действие:",
+        reply_markup=kb_notifications_menu,
+        parse_mode="HTML"
+    )
+
+# Tournament create callback
+async def tournament_create_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.answer("Создание нового турнира")
+    await callback.message.edit_text(
+        "🏆 <b>Создание турнира</b>\n\n"
+        "Введите название турнира:",
+        parse_mode="HTML"
+    )
+    await state.set_state(Admin.waiting_tournament_name)
 
 # Pending notifications list callback
 async def pending_notifications_callback(callback: CallbackQuery):
@@ -230,19 +246,30 @@ async def pending_notifications_callback(callback: CallbackQuery):
     await callback.answer()
 
 async def channel_edit_callback(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await callback.answer("Режим редактирования ссылки канала")
+    await callback.message.edit_text(
+        "📢 <b>Изменение ссылки канала</b>\n\n"
+        "Введите новую ссылку на канал (например: https://t.me/ebka_news):",
+        parse_mode="HTML"
+    )
     await state.set_state(Admin.waiting_channel_link)
 
 async def channel_discord_callback(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await callback.answer("Режим редактирования Discord ссылки")
+    await callback.message.edit_text(
+        "🎮 <b>Изменение Discord ссылки</b>\n\n"
+        "Введите новую ссылку на Discord (например: https://discord.gg/xxxxx):",
+        parse_mode="HTML"
+    )
     await state.set_state(Admin.waiting_discord_link)
 
-async def tournament_create_callback(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    await state.set_state(Admin.waiting_tournament_name)
-
 async def welcome_edit_callback(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await callback.answer("Режим редактирования приветствия")
+    await callback.message.edit_text(
+        "📝 <b>Изменение приветственного сообщения</b>\n\n"
+        "Введите новый текст приветствия (поддерживается HTML):",
+        parse_mode="HTML"
+    )
     await state.set_state(Admin.waiting_welcome_message)
 
 
