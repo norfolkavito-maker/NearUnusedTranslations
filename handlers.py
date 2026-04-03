@@ -583,7 +583,13 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
             peak_rank = user.get('peak_rank', 'Не указан')
             tracker = user.get('tracker', 'Не указан')
             
-            text += f"🎮 <b>{i}. @{username}</b> (<code>{user['tg_id']}</code>)\n"
+            # Добавляем @ если нет
+            if username and not username.startswith('@'):
+                username_display = f"@{username}"
+            else:
+                username_display = username or 'Без username'
+            
+            text += f"🎮 <b>{i}. <a href=\"tg://user?id={user['tg_id']}\">{username_display}</a></b> (<code>{user['tg_id']}</code>)\n"
             text += f"   🎯 Epic: <b>{epic}</b>\n"
             text += f"   💬 Discord: <b>{discord}</b>\n"
             text += f"   🏆 Ранг: <b>{rank}</b> | Пик: <b>{peak_rank}</b>\n"
@@ -1304,7 +1310,10 @@ async def superuser_callback(callback: CallbackQuery, state: FSMContext):
         else:
             text = f"👥 <b>Все пользователи ({len(users)}):</b>\n\n"
             for i, user in enumerate(users, 1):
-                text += f"{i}. @{user.get('username', 'Нет')} (<code>{user['tg_id']}</code>)\n"
+                username = user.get('username', 'Нет')
+                if username and not username.startswith('@'):
+                    username = f"@{username}"
+                text += f"{i}. <a href=\"tg://user?id={user['tg_id']}\">{username}</a> (<code>{user['tg_id']}</code>)\n"
                 text += f"   Epic: {user['epic']} | Discord: {user['discord']}\n"
                 text += f"   MMR: {user['rank']} | Пик: {user['peak_rank']}\n\n"
         
