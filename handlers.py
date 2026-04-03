@@ -586,6 +586,7 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
 
     elif action == "players":
+        from html import escape
         users = await get_all_users()
         if not users:
             await callback.message.edit_text("👥 <b>Зарегистрированных игроков пока нет</b>", reply_markup=kb_admin_panel, parse_mode="HTML")
@@ -597,17 +598,18 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         
         for i, user in enumerate(users, 1):
             username = user.get('username', 'Без username')
-            epic = user.get('epic', 'Не указан')
-            discord = user.get('discord', 'Не указан')
-            rank = user.get('rank', 'Не указан')
-            peak_rank = user.get('peak_rank', 'Не указан')
-            tracker = user.get('tracker', 'Не указан')
+            epic = escape(user.get('epic', 'Не указан') or 'Не указан')
+            discord = escape(user.get('discord', 'Не указан') or 'Не указан')
+            rank = escape(user.get('rank', 'Не указан') or 'Не указан')
+            peak_rank = escape(user.get('peak_rank', 'Не указан') or 'Не указан')
+            tracker = escape(user.get('tracker', 'Не указан') or 'Не указан')
             
             # Добавляем @ если нет
             if username and not username.startswith('@'):
                 username_display = f"@{username}"
             else:
                 username_display = username or 'Без username'
+            username_display = escape(username_display)
             
             text += f"🎮 <b>{i}. <a href=\"tg://user?id={user['tg_id']}\">{username_display}</a></b> (<code>{user['tg_id']}</code>)\n"
             text += f"   🎯 Epic: <b>{epic}</b>\n"
@@ -687,28 +689,39 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
     # Registration settings toggle
     elif action.startswith("regset:"):
         field = action.split(":")[1]
-        settings = await get_registration_settings()
-        if settings:
-            new_status = not settings[f"require_{field}"]
+        try:
+            settings = await get_registration_settings()
+            if not settings:
+                await callback.answer("❌ Ошибка загрузки настроек", show_alert=True)
+                return
+            
+            new_status = not settings.get(f"require_{field}", True)
             await update_registration_settings(**{f"require_{field}": new_status})
+            
+            # Перезагружаем настройки для отображения
+            settings[f"require_{field}"] = new_status
             
             def toggle(status):
                 return "✅" if status else "❌"
             
             text = (
                 f"⚙️ <b>Настройки регистрации:</b>\n\n"
-                f"🔘 {toggle(settings['require_epic'] if field != 'epic' else new_status)} Epic ID\n"
-                f"🔘 {toggle(settings['require_discord'] if field != 'discord' else new_status)} Discord\n"
-                f"🔘 {toggle(settings['require_rank'] if field != 'rank' else new_status)} Актуальный MMR\n"
-                f"🔘 {toggle(settings['require_peak_rank'] if field != 'peak_rank' else new_status)} Пиковый MMR\n"
-                f"🔘 {toggle(settings['require_tracker'] if field != 'tracker' else new_status)} RL Tracker\n\n"
+                f"🔘 {toggle(settings['require_epic'])} Epic ID\n"
+                f"🔘 {toggle(settings['require_discord'])} Discord\n"
+                f"🔘 {toggle(settings['require_rank'])} Актуальный MMR\n"
+                f"🔘 {toggle(settings['require_peak_rank'])} Пиковый MMR\n"
+                f"🔘 {toggle(settings['require_tracker'])} RL Tracker\n\n"
                 f"Нажмите на поле чтобы вкл/выкл"
             )
-            await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+            try:
+                await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+            except Exception:
+                await callback.message.answer(text, reply_markup=kb_reg_settings, parse_mode="HTML")
             status_text = "включено" if new_status else "отключено"
             await callback.answer(f"{'✅' if new_status else '❌'} {field} {status_text}")
-        else:
-            await callback.answer("❌ Ошибка загрузки настроек")
+        except Exception as e:
+            print(f"Error in reg_settings: {e}")
+            await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
     
     # Post-registration message view
     elif action == "postreg:view":
