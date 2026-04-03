@@ -6,7 +6,11 @@ import os
 # Add the project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import init_db, add_user
+# Override config env vars to disable Turso locally
+os.environ["TURSO_URL"] = ""
+os.environ["TURSO_TOKEN"] = ""
+
+import aiosqlite
 
 OLD_PLAYERS = [
     {"tg_id": 820870350, "username": "valiauh", "epic": "de7cce031eb04b0db7d2c8922738bbc7", "discord": "valiauh", "rank": "Чемпион 2 / Дивизион 3 (1248 MMR)", "peak_rank": "ГЧ1 (1537 MMR)", "tracker": ""},
@@ -24,35 +28,73 @@ OLD_PLAYERS = [
     {"tg_id": 8420004944, "username": "Popolovnik", "epic": "DSoymon4ik", "discord": "dsoymon4ik.", "rank": "Даймонд 3 / Дивизион 4 (1052 MMR)", "peak_rank": "Чемпион 1 / Дивизион 1 (1075 MMR)", "tracker": ""},
 ]
 
+DB_PATH = "./users.db"
+
 async def main():
-    print("🗄️ Инициализация БД...")
-    await init_db()
+    print(f"🗄️ Подключение к локальной БД: {DB_PATH}")
     
-    from db import check_user
-    
-    added = 0
-    skipped = 0
-    
-    for player in OLD_PLAYERS:
-        exists = await check_user(player["tg_id"])
-        if exists:
-            print(f"⏭️ @{player['username']} уже есть в БД")
-            skipped += 1
-            continue
-        
-        await add_user(
-            tg_id=player["tg_id"],
-            username=player["username"],
-            epic=player["epic"],
-            discord=player["discord"],
-            rank=player["rank"],
-            peak_rank=player["peak_rank"],
-            tracker=player["tracker"]
+    async with aiosqlite.connect(DB_PATH) as conn:
+        # Create table if not exists (same schema as db.py)
+        await conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            tg_id INTEGER PRIMARY KEY,
+            username TEXT,
+            epic TEXT,
+            discord TEXT,
+            rank TEXT,
+            peak_rank TEXT,
+            tracker TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        print(f"✅ @{player['username']} добавлен")
-        added += 1
-    
-    print(f"\n✅ Готово! Добавлено: {added}, Пропущено: {skipped}")
+        """)
+        await conn.commit()
+        
+        added = 0
+        skipped = 0
+        updated = 0
+        
+        for player in OLD_PLAYERS:
+            # Check if user exists
+            cursor = await conn.execute("SELECT tg_id FROM users WHERE tg_id = ?", (player["tg_id"],))
+            row = await cursor.fetchone()
+            
+            if row:
+                # Update existing player
+                await conn.execute("""
+                    UPDATE users SET 
+                        username = ?, epic = ?, discord = ?, 
+                        rank = ?, peak_rank = ?, tracker = ?
+                    WHERE tg_id = ?
+                """, (
+                    player["username"], player["epic"], player["discord"],
+                    player["rank"], player["peak_rank"], player["tracker"],
+                    player["tg_id"]
+                ))
+                print(f"🔄 @{player['username']} обновлен")
+                updated += 1
+            else:
+                # Insert new player
+                await conn.execute("""
+                    INSERT INTO users (tg_id, username, epic, discord, rank, peak_rank, tracker)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    player["tg_id"], player["username"], player["epic"], player["discord"],
+                    player["rank"], player["peak_rank"], player["tracker"]
+                ))
+                print(f"✅ @{player['username']} добавлен")
+                added += 1
+        
+        await conn.commit()
+        
+        # Show all players in DB
+        print("\n📋 Все игроки в базе:")
+        cursor = await conn.execute("SELECT tg_id, username, epic FROM users ORDER BY username")
+        rows = await cursor.fetchall()
+        for tg_id, username, epic in rows:
+            print(f"   @{username} | {tg_id} | Epic: {epic}")
+        
+        print(f"\n✅ Готово! Добавлено: {added}, Обновлено: {updated}, Пропущено: {skipped}")
+        print(f"📁 База данных: {DB_PATH}")
 
 if __name__ == "__main__":
     asyncio.run(main())
