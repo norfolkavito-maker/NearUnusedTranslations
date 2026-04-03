@@ -33,7 +33,7 @@ def _exec(sql, params=()):
 async def _run(func, *args):
     """Запуск синхронной функции в thread pool"""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: func(*args))
+    return await loop.run_in_executor(None, lambda: func(*args) if args else func())
 
 
 async def init_db():
@@ -41,57 +41,71 @@ async def init_db():
     def _init():
         conn = _get_conn()
         try:
-            conn.execute("""CREATE TABLE IF NOT EXISTS users (
-                tg_id INTEGER PRIMARY KEY, username TEXT, epic TEXT,
-                discord TEXT, rank TEXT, peak_rank TEXT, tracker TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS admins (
-                tg_id INTEGER PRIMARY KEY, username TEXT,
-                added_by INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS moderators (
-                tg_id INTEGER PRIMARY KEY, username TEXT,
-                added_by INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS channel_settings (
-                id INTEGER PRIMARY KEY DEFAULT 1, channel_link TEXT,
-                discord_link TEXT, require_subscription BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS tournaments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-                description TEXT, date_time TEXT, max_players INTEGER,
-                prize TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS welcome_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
-                is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS tournament_notifications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, tournament_id INTEGER,
-                message TEXT, send_time TEXT, sent BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS superuser_settings (
-                id INTEGER PRIMARY KEY DEFAULT 1, password TEXT DEFAULT '1234',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS activity_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
-                username TEXT, action TEXT, details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS bot_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT DEFAULT 'INFO',
-                message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS registration_settings (
-                id INTEGER PRIMARY KEY DEFAULT 1, require_epic BOOLEAN DEFAULT 1,
-                require_discord BOOLEAN DEFAULT 1, require_rank BOOLEAN DEFAULT 1,
-                require_peak_rank BOOLEAN DEFAULT 1, require_tracker BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS post_registration_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
-                is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+            tables = [
+                """CREATE TABLE IF NOT EXISTS users (
+                    tg_id INTEGER PRIMARY KEY, username TEXT, epic TEXT,
+                    discord TEXT, rank TEXT, peak_rank TEXT, tracker TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS admins (
+                    tg_id INTEGER PRIMARY KEY, username TEXT,
+                    added_by INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS moderators (
+                    tg_id INTEGER PRIMARY KEY, username TEXT,
+                    added_by INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS channel_settings (
+                    id INTEGER PRIMARY KEY DEFAULT 1, channel_link TEXT,
+                    discord_link TEXT, require_subscription BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS tournaments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+                    description TEXT, date_time TEXT, max_players INTEGER,
+                    prize TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS welcome_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
+                    is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS tournament_notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, tournament_id INTEGER,
+                    message TEXT, send_time TEXT, sent BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS superuser_settings (
+                    id INTEGER PRIMARY KEY DEFAULT 1, password TEXT DEFAULT '1234',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS activity_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
+                    username TEXT, action TEXT, details TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS bot_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT DEFAULT 'INFO',
+                    message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS registration_settings (
+                    id INTEGER PRIMARY KEY DEFAULT 1, require_epic BOOLEAN DEFAULT 1,
+                    require_discord BOOLEAN DEFAULT 1, require_rank BOOLEAN DEFAULT 1,
+                    require_peak_rank BOOLEAN DEFAULT 1, require_tracker BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS post_registration_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
+                    is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+            ]
+            for sql in tables:
+                conn.execute(sql)
             conn.execute("INSERT OR IGNORE INTO registration_settings (id, require_epic, require_discord, require_rank, require_peak_rank, require_tracker) VALUES (1, 1, 1, 1, 1, 1)")
             conn.execute("INSERT OR IGNORE INTO superuser_settings (id, password) VALUES (1, '1234')")
             conn.commit()
+            print(f"✅ Все таблицы созданы в Turso")
+        except Exception as e:
+            print(f"❌ Ошибка создания таблиц: {e}")
+            raise
         finally:
             conn.close()
 
-    await _run(_init)
-    print(f"✅ База данных инициализирована (Turso: {USE_TURSO})")
+    try:
+        await _run(_init)
+        print(f"✅ База данных инициализирована (Turso: {USE_TURSO})")
+    except Exception as e:
+        print(f"❌ Критическая ошибка init_db: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 # ── User Management ───────────────────────────────────────────────────────────────
