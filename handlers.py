@@ -689,13 +689,26 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
     # Registration settings toggle
     elif action in ("epic", "discord", "rank", "peak_rank", "tracker"):
         field = action
+        print(f"[DEBUG] reg_settings: field={field}")
         try:
             settings = await get_registration_settings()
-            if not settings:
-                await callback.answer("❌ Ошибка загрузки настроек", show_alert=True)
-                return
+            print(f"[DEBUG] reg_settings: settings={settings}")
             
-            new_status = not settings.get(f"require_{field}", True)
+            # Fallback на дефолтные значения если settings=None
+            if not settings:
+                settings = {
+                    "require_epic": True,
+                    "require_discord": True,
+                    "require_rank": True,
+                    "require_peak_rank": True,
+                    "require_tracker": True,
+                }
+                print(f"[DEBUG] reg_settings: using default settings")
+            
+            current_status = settings.get(f"require_{field}", True)
+            new_status = not current_status
+            print(f"[DEBUG] reg_settings: {field} {current_status} -> {new_status}")
+            
             await update_registration_settings(**{f"require_{field}": new_status})
             
             # Перезагружаем настройки для отображения
@@ -715,12 +728,15 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
             )
             try:
                 await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
-            except Exception:
+            except Exception as e:
+                print(f"[DEBUG] reg_settings: edit_text failed: {e}")
                 await callback.message.answer(text, reply_markup=kb_reg_settings, parse_mode="HTML")
             status_text = "включено" if new_status else "отключено"
             await callback.answer(f"{'✅' if new_status else '❌'} {field} {status_text}")
         except Exception as e:
-            print(f"Error in reg_settings: {e}")
+            import traceback
+            print(f"[ERROR] reg_settings: {e}")
+            traceback.print_exc()
             await callback.answer(f"❌ Ошибка: {e}", show_alert=True)
     
     # Post-registration message view

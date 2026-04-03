@@ -4,6 +4,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
+from aiogram.dispatcher.middlewares.base import BaseMiddleware
 
 from handlers import (
     start_handler, registration_handler, sub_check_callback,
@@ -34,6 +35,17 @@ from web import start_web
 from scheduler import scheduler_task
 
 RANK_STATES = StateFilter(Registration.rank, Registration.peak_rank)
+
+
+class CallbackLoggerMiddleware(BaseMiddleware):
+    """Middleware для логирования всех callback_query"""
+    async def __call__(self, handler, event, data):
+        try:
+            user = event.from_user
+            print(f"📞 CALLBACK: user={user.id} (@{user.username or 'no_username'}) data={event.data}")
+        except Exception as e:
+            print(f"⚠️ Error logging callback: {e}")
+        return await handler(event, data)
 
 
 async def main():
@@ -67,6 +79,10 @@ async def main():
     except Exception as e:
         print(f"❌ Критическая ошибка инициализации БД: {e}")
         return
+    
+    # Register callback logger middleware
+    dp.callback_query.middleware(CallbackLoggerMiddleware())
+    print("📝 Middleware логирования зарегистрирован")
     
     register_handlers(dp)
     print("✅ Обработчики зарегистрированы")
