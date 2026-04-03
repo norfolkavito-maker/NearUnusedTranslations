@@ -49,46 +49,41 @@ async def main():
     dp = Dispatcher(storage=storage)
     
     try:
+        # Удаляем webhook чтобы избежать конфликта с polling
+        await bot.delete_webhook()
+        print("✅ Webhook удалён")
+        
         me = await bot.get_me()
-        print(f"✅ Bot объект создан")
         print(f"✅ Бот найден: @{me.username} ({me.full_name})")
     except Exception as e:
-        print(f"❌ Ошибка создания бота: {e}")
+        print(f"❌ Ошибка подключения: {e}")
         return
     
-    print("✅ Dispatcher создан")
-    
+    # Сначала инициализируем БД, потом всё остальное
     try:
         await init_db()
         print("✅ База данных инициализирована")
     except Exception as e:
-        print(f"❌ Ошибка инициализации БД: {e}")
+        print(f"❌ Критическая ошибка инициализации БД: {e}")
         return
     
     register_handlers(dp)
     print("✅ Обработчики зарегистрированы")
     
+    # Запускаем фоновые задачи
     asyncio.create_task(start_web())
     print("🌐 Веб-панель запущена на порту 5000")
     
     asyncio.create_task(scheduler_task(bot))
     print("✅ Планировщик запущен")
     
+    # Один polling вызов, без конфликтов
     print("🚀 Бот запущен, начинаем polling...")
-    try:
-        await dp.start_polling(
-            bot,
-            allowed_updates=["message", "callback_query"],
-            close_bot_session=False,
-            drop_pending_updates=True
-        )
-    except Exception as e:
-        print(f"❌ Критическая ошибка: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        await bot.session.close()
-        print("🛑 Бот остановлен")
+    await dp.start_polling(
+        bot,
+        allowed_updates=["message", "callback_query"],
+        drop_pending_updates=True
+    )
 
 
 def register_handlers(dp: Dispatcher):
