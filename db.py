@@ -186,6 +186,35 @@ async def init_db():
         )
         """)
         
+        # Registration settings table
+        await _execute("""
+        CREATE TABLE IF NOT EXISTS registration_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            require_epic BOOLEAN DEFAULT 1,
+            require_discord BOOLEAN DEFAULT 1,
+            require_rank BOOLEAN DEFAULT 1,
+            require_peak_rank BOOLEAN DEFAULT 1,
+            require_tracker BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        # Post-registration messages table
+        await _execute("""
+        CREATE TABLE IF NOT EXISTS post_registration_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+        # Initialize default registration settings
+        await _execute("""
+        INSERT OR IGNORE INTO registration_settings (id, require_epic, require_discord, require_rank, require_peak_rank, require_tracker) 
+        VALUES (1, 1, 1, 1, 1, 1)
+        """)
+        
         # Initialize superuser settings if not exists
         await _execute("""
         INSERT OR IGNORE INTO superuser_settings (id, password) VALUES (1, '1234')
@@ -753,3 +782,81 @@ async def get_backup_count():
         }
     except Exception as e:
         return {"users": 0, "admins": 0, "tournaments": 0}
+
+# ── Registration Settings ───────────────────────────────────────────────────────────────
+async def get_registration_settings():
+    """Получить настройки регистрации"""
+    try:
+        cursor = await _execute("SELECT * FROM registration_settings WHERE id = 1")
+        row = await _fetchone(cursor)
+        if row:
+            columns = ["id", "require_epic", "require_discord", "require_rank", "require_peak_rank", "require_tracker", "created_at"]
+            return dict(zip(columns, row))
+        return None
+    except Exception as e:
+        print(f"❌ Ошибка получения настроек регистрации: {e}")
+        return None
+
+async def update_registration_settings(**kwargs):
+    """Обновить настройки регистрации"""
+    try:
+        settings = await get_registration_settings()
+        if not settings:
+            return False
+        
+        for key, value in kwargs.items():
+            if key in settings:
+                settings[key] = value
+        
+        await _execute(
+            "UPDATE registration_settings SET require_epic = ?, require_discord = ?, require_rank = ?, require_peak_rank = ?, require_tracker = ? WHERE id = 1",
+            (settings["require_epic"], settings["require_discord"], settings["require_rank"], settings["require_peak_rank"], settings["require_tracker"])
+        )
+        await _commit()
+        print("✅ Настройки регистрации обновлены")
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка обновления настроек регистрации: {e}")
+        return False
+
+# ── Post Registration Messages ───────────────────────────────────────────────────────────────
+async def add_post_registration_message(message):
+    """Добавить сообщение после регистрации"""
+    try:
+        await _execute("UPDATE post_registration_messages SET is_active = 0")
+        cursor = await _execute(
+            "INSERT INTO post_registration_messages (message, is_active) VALUES (?, 1)",
+            (message,)
+        )
+        message_id = cursor.lastrowid
+        await _commit()
+        print(f"✅ Сообщение после регистрации {message_id} добавлено")
+        return message_id
+    except Exception as e:
+        print(f"❌ Ошибка добавления сообщения после регистрации: {e}")
+        return None
+
+async def get_active_post_registration_message():
+    """Получить активное сообщение после регистрации"""
+    try:
+        cursor = await _execute("SELECT * FROM post_registration_messages WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1")
+        row = await _fetchone(cursor)
+        if row:
+            columns = ["id", "message", "is_active", "created_at"]
+            return dict(zip(columns, row))
+        return None
+    except Exception as e:
+        print(f"❌ Ошибка получения сообщения после регистрации: {e}")
+        return None
+
+async def update_post_registration_message(message_id, message):
+    """Обновить сообщение после регистрации"""
+    try:
+        await _execute(
+            "UPDATE post_registration_messages SET message = ? WHERE id = ?",
+            (message, message_id)
+        )
+        await _commit()
+        print(f"✅ Сообщение после регистрации {message_id} обновлено")
+    except Exception as e:
+        print(f"❌ Ошибка обновления сообщения после регистрации: {e}")

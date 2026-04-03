@@ -786,21 +786,32 @@ async def broadcast_send(msg: types.Message, state: FSMContext, bot: Bot):
 # ── Admin Management ─────────────────────────────────────────────────────────────
 async def admin_manage_id(msg: types.Message, state: FSMContext):
     data = await state.get_data()
-    action = data.get("admin_action", "add")
+    action = data.get("admin_action")
     
-    print(f"DEBUG: admin_manage_id called with action: {action}, data: {data}")
+    if not action:
+        await msg.answer("⚠️ Сначала выберите действие: добавить или удалить админа")
+        return
     
     try:
         admin_id = int(msg.text.strip())
         
         if action == "add":
-            username = msg.from_user.username or ""
+            # Get username of the person being added
+            try:
+                chat_member = await msg.bot.get_chat_member(admin_id, admin_id)
+                username = chat_member.user.username or ""
+            except:
+                username = ""
+            
             await add_admin(admin_id, username, msg.from_user.id)
             await state.clear()
             await msg.answer(
                 f"✅ Пользователь <code>{admin_id}</code> добавлен в админы!",
-                reply_markup=kb_admin_panel
+                reply_markup=kb_admin_panel,
+                parse_mode="HTML"
             )
+            await log_activity(msg.from_user.id, msg.from_user.username, "ADD_ADMIN", f"Добавлен админ: {admin_id}")
+            
         elif action == "remove":
             # Don't allow removing self
             if admin_id == msg.from_user.id:
@@ -811,8 +822,11 @@ async def admin_manage_id(msg: types.Message, state: FSMContext):
             await state.clear()
             await msg.answer(
                 f"✅ Пользователь <code>{admin_id}</code> удален из админов!",
-                reply_markup=kb_admin_panel
+                reply_markup=kb_admin_panel,
+                parse_mode="HTML"
             )
+            await log_activity(msg.from_user.id, msg.from_user.username, "REMOVE_ADMIN", f"Удален админ: {admin_id}")
+            
     except ValueError:
         await msg.answer("⚠️ Введи корректный числовой ID пользователя")
     except Exception as e:
