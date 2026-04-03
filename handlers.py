@@ -292,14 +292,16 @@ async def process_tracker(msg: types.Message, state: FSMContext):
     
     # Уведомление админам о новом игроке
     try:
-        from config import ADMIN_IDS
+        from aiogram import Bot
+        from config import ADMIN_IDS, TOKEN
+        bot_instance = Bot(token=TOKEN)
         admins = await get_all_admins()
         admin_ids = list(ADMIN_IDS) + [admin['tg_id'] for admin in admins]
         admin_ids = list(set(admin_ids))
         
         notification_text = (
             f"🎉 <b>Новый игрок зарегистрился!</b>\n\n"
-            f"👤 @{username} (<code>{tg_id}</code>)\n"
+            f"👤 <a href=\"tg://user?id={tg_id}\">@{username}</a> (<code>{tg_id}</code>)\n"
             f"🎯 Epic: {data.get('epic', '')}\n"
             f"💬 Discord: {data.get('discord', '')}\n"
             f"🏆 MMR: {data.get('rank', '')}\n"
@@ -308,10 +310,11 @@ async def process_tracker(msg: types.Message, state: FSMContext):
         
         for admin_id in admin_ids:
             try:
-                from bot import bot as bot_instance
                 await bot_instance.send_message(chat_id=admin_id, text=notification_text, parse_mode="HTML")
             except Exception as e:
                 print(f"Failed to notify admin {admin_id}: {e}")
+        
+        await bot_instance.session.close()
     except Exception as e:
         print(f"Error notifying admins about new player: {e}")
 
