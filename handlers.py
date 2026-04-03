@@ -1,3 +1,4 @@
+# Fixed: 2026-04-03 11:33 MSK - syntax error fix
 from aiogram import types, Bot, F
 from datetime import datetime
 from aiogram.fsm.context import FSMContext
