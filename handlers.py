@@ -1043,16 +1043,24 @@ async def admin_list(callback: CallbackQuery):
 
 # ── Channel Settings Management ───────────────────────────────────────────────────
 async def channel_edit_link(msg: types.Message, state: FSMContext):
+    url = msg.text.strip()
+    if not url.startswith(("https://", "http://", "t.me/")):
+        await msg.answer("⚠️ Ссылка должна начинаться с https://, http:// или t.me/")
+        return
     await state.clear()
-    await update_channel_settings(channel_link=msg.text.strip())
+    await update_channel_settings(channel_link=url)
     await msg.answer(
         "✅ Ссылка на канал обновлена!",
         reply_markup=kb_admin_panel
     )
 
 async def channel_edit_discord(msg: types.Message, state: FSMContext):
+    url = msg.text.strip()
+    if not url.startswith(("https://", "http://")):
+        await msg.answer("⚠️ Ссылка должна начинаться с https:// или http://")
+        return
     await state.clear()
-    await update_channel_settings(discord_link=msg.text.strip())
+    await update_channel_settings(discord_link=url)
     await msg.answer(
         "✅ Discord ссылка обновлена!",
         reply_markup=kb_admin_panel
