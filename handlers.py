@@ -479,6 +479,12 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         return
 
     action = callback.data.split(":")[1]
+    print(f"[DEBUG] Admin callback: action={action}")
+
+    # Clear state before any admin action to avoid conflicts
+    current_state = await state.get_state()
+    if current_state is not None and not current_state.startswith("Admin:waiting_"):
+        await state.clear()
 
     if action == "list":
         users = await get_all_users()
