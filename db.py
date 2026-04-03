@@ -17,7 +17,7 @@ _db_lock = threading.Lock()
 def _get_conn():
     """Создаёт новое подключение к Turso"""
     if not USE_TURSO:
-        raise RuntimeError("TURSO_URL/TURSA_URL не настроен!")
+        raise RuntimeError("TURSO_URL/TURSO_TOKEN не настроен!")
     import libsql_experimental
     return libsql_experimental.connect(TURSO_URL, auth_token=TURSO_TOKEN)
 
@@ -151,7 +151,7 @@ async def init_db():
         await asyncio.get_event_loop().run_in_executor(None, _init_db_sync)
         print("✅ База данных инициализирована (Turso)")
     else:
-        print("⚠️ Turso не настроен — проверьте TURSA_URL и TURSA_TOKEN")
+        print("⚠️ Turso не настроен — проверьте TURSO_URL и TURSO_TOKEN")
 
 
 # ── User Management ───────────────────────────────────────────────────────
