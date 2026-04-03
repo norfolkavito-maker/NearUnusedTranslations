@@ -21,7 +21,7 @@ from handlers import (
     channel_edit_link, channel_view, channel_toggle_subscription, channel_edit_discord,
     contact_admins_handler, discord_handler,
 )
-from db import init_db, add_admin
+from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
 from states import Registration, Admin
 from web import start_web
@@ -89,7 +89,11 @@ async def main():
 def register_handlers(dp: Dispatcher):
     # Basic commands
     dp.message.register(start_handler, Command("start"))
-    dp.message.register(registration_handler, F.text == "🏆 Регистрация на турнир")
+    dp.message.register(registration_handler, F.text == "� Регистрация")
+    dp.message.register(me_handler, F.text == "📋 Мои данные")
+    dp.message.register(delete_self_handler, F.text == "🗑 Удалить мои данные")
+    dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
+    dp.message.register(discord_handler, F.text == "🎮 Discord")
     
     # Admin panel
     dp.message.register(admin_panel_handler, F.text == "⚙️ Админ-панель")

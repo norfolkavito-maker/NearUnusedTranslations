@@ -2,3 +2,4 @@ aiogram
 aiosqlite
 openpyxl
 aiohttp
+libsql_experimental
