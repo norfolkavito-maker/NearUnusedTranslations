@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Скрипт импорта 13 существующих игроков в базу данных Turso.
+Скрипт импорта 8 существующих игроков в базу данных Turso.
 
 Запуск через Railway CLI:
     railway shell
@@ -25,7 +25,7 @@ PLAYERS = [
         "discord": "valiauh",
         "rank": "Чемпион 2 / Дивизион 3 (1248 MMR)",
         "peak_rank": "ГЧ1 (1537 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/SRG%20stormfv/overview",
     },
     {
         "tg_id": 853216552,
@@ -34,7 +34,7 @@ PLAYERS = [
         "discord": "pupupu67",
         "rank": "Чемпион 2 / Дивизион 2 (1215 MMR)",
         "peak_rank": "ГЧ1 (1435 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/%C6%A6%E2%84%A8%C4%AC/overview?utm_source=landing&utm_medium=profile-link&utm_campaign=landing-v2",
     },
     {
         "tg_id": 892953049,
@@ -43,7 +43,7 @@ PLAYERS = [
         "discord": "Walak.",
         "rank": "Чемпион 3 / Дивизион 1 (1315 MMR)",
         "peak_rank": "ГЧ1 (1435 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/Qwelyx./overview",
     },
     {
         "tg_id": 984566385,
@@ -52,25 +52,7 @@ PLAYERS = [
         "discord": "1006872",
         "rank": "Чемпион 1 / Дивизион 4 (1162 MMR)",
         "peak_rank": "Чемпион 2 / Дивизион 4 (1282 MMR)",
-        "tracker": "",
-    },
-    {
-        "tg_id": 1027866429,
-        "username": "almuted",
-        "epic": "Schmurdya",
-        "discord": "schmurdya",
-        "rank": "MMR: 1070",
-        "peak_rank": "Чемпион 3 / Дивизион 2 (1335 MMR)",
-        "tracker": "",
-    },
-    {
-        "tg_id": 1455661269,
-        "username": "CheSlychilos",
-        "epic": "ForgetMyName_",
-        "discord": "piredozzza",
-        "rank": "Чемпион 1 / Дивизион 4 (1162 MMR)",
-        "peak_rank": "Чемпион 3 / Дивизион 3 (1372 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/g0tthejuice/overview",
     },
     {
         "tg_id": 1696948772,
@@ -79,7 +61,7 @@ PLAYERS = [
         "discord": "levandosik_kakosik",
         "rank": "Чемпион 3 / Дивизион 1 (1315 MMR)",
         "peak_rank": "Чемпион 3 / Дивизион 4 (1402 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/Lev1k40/overview",
     },
     {
         "tg_id": 2097749803,
@@ -88,34 +70,7 @@ PLAYERS = [
         "discord": "Korrya76",
         "rank": "Даймонд 1 / Дивизион 3 (873 MMR)",
         "peak_rank": "Чемпион 1 / Дивизион 2 (1095 MMR)",
-        "tracker": "",
-    },
-    {
-        "tg_id": 5208295687,
-        "username": "M1rpe",
-        "epic": "4f78a67a7f444bf19f82f7acc309c093",
-        "discord": "okeokeoka",
-        "rank": "Чемпион 2 / Дивизион 3 (1248 MMR)",
-        "peak_rank": "Чемпион 3 / Дивизион 1 (1315 MMR)",
-        "tracker": "",
-    },
-    {
-        "tg_id": 5315781827,
-        "username": "dinilama",
-        "epic": "Бля(",
-        "discord": "mvnicx",
-        "rank": "Чемпион 1 / Дивизион 1 (1075 MMR)",
-        "peak_rank": "Чемпион 1 / Дивизион 3 (1128 MMR)",
-        "tracker": "",
-    },
-    {
-        "tg_id": 5975741277,
-        "username": "ribmus",
-        "epic": "Buchptz",
-        "discord": "ribmus",
-        "rank": "Даймонд 3 / Дивизион 1 (995 MMR)",
-        "peak_rank": "Чемпион 1 / Дивизион 1 (1075 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/Korrya_Mc/overview",
     },
     {
         "tg_id": 6424764691,
@@ -124,7 +79,7 @@ PLAYERS = [
         "discord": "w1nbl_",
         "rank": "Чемпион 2 / Дивизион 1 (1195 MMR)",
         "peak_rank": "Чемпион 2 / Дивизион 1 (1195 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/w1nbl/overview",
     },
     {
         "tg_id": 8420004944,
@@ -133,16 +88,14 @@ PLAYERS = [
         "discord": "dsoymon4ik.",
         "rank": "Даймонд 3 / Дивизион 4 (1052 MMR)",
         "peak_rank": "Чемпион 1 / Дивизион 1 (1075 MMR)",
-        "tracker": "",
+        "tracker": "https://rocketleague.tracker.network/rocket-league/profile/epic/DSoymon4ik/overview",
     },
 ]
 
 
 async def main():
-    # Validate environment before doing anything
     if not TURSO_URL or not TURSO_TOKEN:
         print("❌ TURSO_URL и TURSO_TOKEN не настроены!")
-        print("   Убедитесь, что переменные окружения заданы в Railway.")
         sys.exit(1)
 
     print(f"🔗 Подключение к Turso: {TURSO_URL[:60]}...")
