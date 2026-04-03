@@ -631,16 +631,19 @@ async def get_registration_settings():
 async def update_registration_settings(**kwargs):
     settings = await get_registration_settings()
     if not settings:
+        print(f"[DB] update_registration_settings: settings is None, returning False")
         return False
     for k, v in kwargs.items():
         if k in settings:
             settings[k] = v
     try:
+        print(f"[DB] UPDATE registration_settings: {kwargs}")
         await _safe_query("UPDATE registration_settings SET require_epic=?,require_discord=?,require_rank=?,require_peak_rank=?,require_tracker=? WHERE id=1",
             (settings["require_epic"],settings["require_discord"],settings["require_rank"],settings["require_peak_rank"],settings["require_tracker"]))
+        print(f"[DB] UPDATE successful")
         return True
     except Exception as e:
-        print(f"❌ Ошибка обновления настроек: {e}")
+        print(f"[DB] UPDATE error: {e}")
         return False
 
 

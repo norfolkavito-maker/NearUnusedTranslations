@@ -586,43 +586,41 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
 
     elif action == "players":
-        from html import escape
         users = await get_all_users()
         if not users:
-            await callback.message.edit_text("👥 <b>Зарегистрированных игроков пока нет</b>", reply_markup=kb_admin_panel, parse_mode="HTML")
+            await callback.message.edit_text("👥 Зарегистрированных игроков пока нет", reply_markup=kb_admin_panel)
             await callback.answer()
             return
         
-        # Создаем красивый список
-        text = f"👥 <b>Зарегистрированные игроки ({len(users)}):</b>\n\n"
+        # Plain text без HTML чтобы избежать проблем с парсингом
+        text = f"👥 Зарегистрированные игроки ({len(users)}):\n\n"
         
         for i, user in enumerate(users, 1):
             username = user.get('username', 'Без username')
-            epic = escape(user.get('epic', 'Не указан') or 'Не указан')
-            discord = escape(user.get('discord', 'Не указан') or 'Не указан')
-            rank = escape(user.get('rank', 'Не указан') or 'Не указан')
-            peak_rank = escape(user.get('peak_rank', 'Не указан') or 'Не указан')
-            tracker = escape(user.get('tracker', 'Не указан') or 'Не указан')
+            epic = user.get('epic', 'Не указан') or 'Не указан'
+            discord = user.get('discord', 'Не указан') or 'Не указан'
+            rank = user.get('rank', 'Не указан') or 'Не указан'
+            peak_rank = user.get('peak_rank', 'Не указан') or 'Не указан'
+            tracker = user.get('tracker', 'Не указан') or 'Не указан'
             
-            # Добавляем @ если нет
             if username and not username.startswith('@'):
                 username_display = f"@{username}"
             else:
                 username_display = username or 'Без username'
-            username_display = escape(username_display)
             
-            text += f"🎮 <b>{i}. <a href=\"tg://user?id={user['tg_id']}\">{username_display}</a></b> (<code>{user['tg_id']}</code>)\n"
-            text += f"   🎯 Epic: <b>{epic}</b>\n"
-            text += f"   💬 Discord: <b>{discord}</b>\n"
-            text += f"   🏆 Ранг: <b>{rank}</b> | Пик: <b>{peak_rank}</b>\n"
-            text += f"   📊 Tracker: <b>{tracker}</b>\n\n"
+            text += f"{i}. {username_display} (ID: {user['tg_id']})\n"
+            text += f"   Epic: {epic}\n"
+            text += f"   Discord: {discord}\n"
+            text += f"   Ранг: {rank} | Пик: {peak_rank}\n"
+            text += f"   Tracker: {tracker}\n\n"
         
         # Разбиваем на части если слишком длинное сообщение
         for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
             try:
-                await callback.message.edit_text(chunk, parse_mode="HTML")
-            except:
-                await callback.message.answer(chunk, parse_mode="HTML")
+                await callback.message.edit_text(chunk)
+            except Exception as e:
+                print(f"[DEBUG] players edit_text failed: {e}")
+                await callback.message.answer(chunk)
         
         await callback.answer()
 
