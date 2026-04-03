@@ -871,12 +871,15 @@ async def welcome_edit(msg: types.Message, state: FSMContext):
 
 async def welcome_view(callback: CallbackQuery):
     welcome = await get_active_welcome_message()
-    if welcome:
+    if welcome and welcome.get('message'):
         text = f"📝 <b>Текущее приветственное сообщение:</b>\n\n{welcome['message']}"
     else:
-        text = "📝 Приветственное сообщение не установлено"
+        text = "📝 Приветственное сообщение не установлено.\n\nНажмите 'Изменить сообщение' чтобы добавить."
     
-    await callback.message.edit_text(text, reply_markup=kb_admin_panel, parse_mode="HTML")
+    try:
+        await callback.message.edit_text(text, reply_markup=kb_welcome_menu, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=kb_welcome_menu, parse_mode="HTML")
     await callback.answer()
 
 # ── Notification Management ─────────────────────────────────────────────────────
@@ -1107,15 +1110,21 @@ async def channel_edit_discord(msg: types.Message, state: FSMContext):
 async def channel_view(callback: CallbackQuery):
     settings = await get_channel_settings()
     
-    status = "✅ Включено" if settings.get("require_subscription") else "❌ Выключено"
-    text = (
-        f"📢 <b>Настройки канала:</b>\n\n"
-        f"🔗 Ссылка на канал: {settings.get('channel_link', 'Не установлена')}\n"
-        f"🎮 Discord ссылка: {settings.get('discord_link', 'Не установлена')}\n"
-        f"🔔 Требовать подписку: {status}"
-    )
+    if settings:
+        status = "✅ Включено" if settings.get("require_subscription") else "❌ Выключено"
+        text = (
+            f"📢 <b>Настройки канала:</b>\n\n"
+            f"🔗 Ссылка на канал: {settings.get('channel_link', 'Не установлена')}\n"
+            f"🎮 Discord ссылка: {settings.get('discord_link', 'Не установлена')}\n"
+            f"🔔 Требовать подписку: {status}"
+        )
+    else:
+        text = "📢 Настройки канала не установлены.\n\nНажмите 'Изменить ссылку канала' чтобы добавить."
     
-    await callback.message.edit_text(text, reply_markup=kb_channel_menu, parse_mode="HTML")
+    try:
+        await callback.message.edit_text(text, reply_markup=kb_channel_menu, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=kb_channel_menu, parse_mode="HTML")
     await callback.answer()
 
 async def channel_toggle_subscription(callback: CallbackQuery):
