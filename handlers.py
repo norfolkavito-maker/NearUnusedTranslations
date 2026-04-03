@@ -16,6 +16,8 @@ from db import (
     log_activity, get_activity_logs, clear_activity_logs,
     log_bot, get_bot_logs, clear_bot_logs,
     create_backup, restore_from_backup, get_backup_count,
+    get_registration_settings, update_registration_settings,
+    add_post_registration_message, get_active_post_registration_message, update_post_registration_message,
 )
 from states import Registration, Admin, ContactAdmin, SuperUser
 from keyboards import (
@@ -429,6 +431,35 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
             parse_mode="HTML"
         )
         await callback.answer()
+    
+    elif action == "post_reg_msg":
+        await callback.message.edit_text(
+            "📝 <b>Сообщение после регистрации:</b>",
+            reply_markup=kb_post_reg_menu,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "reg_settings":
+        settings = await get_registration_settings()
+        if settings:
+            def toggle(status):
+                return "✅" if status else "❌"
+            
+            text = (
+                f"⚙️ <b>Настройки регистрации:</b>\n\n"
+                f"🔘 {toggle(settings['require_epic'])} Epic ID\n"
+                f"🔘 {toggle(settings['require_discord'])} Discord\n"
+                f"🔘 {toggle(settings['require_rank'])} Актуальный MMR\n"
+                f"🔘 {toggle(settings['require_peak_rank'])} Пиковый MMR\n"
+                f"🔘 {toggle(settings['require_tracker'])} RL Tracker\n\n"
+                f"Нажмите на поле чтобы вкл/выкл"
+            )
+        else:
+            text = "⚠️ Ошибка загрузки настроек"
+        
+        await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+        await callback.answer()
 
     elif action == "notifications":
         await callback.message.edit_text(
@@ -530,6 +561,59 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
             parse_mode="HTML"
         )
         await callback.answer("Отменено")
+    
+    # Registration settings toggle
+    elif action.startswith("regset:"):
+        field = action.split(":")[1]
+        settings = await get_registration_settings()
+        if settings:
+            new_status = not settings[f"require_{field}"]
+            await update_registration_settings(**{f"require_{field}": new_status})
+            
+            def toggle(status):
+                return "✅" if status else "❌"
+            
+            text = (
+                f"⚙️ <b>Настройки регистрации:</b>\n\n"
+                f"🔘 {toggle(settings['require_epic'] if field != 'epic' else new_status)} Epic ID\n"
+                f"🔘 {toggle(settings['require_discord'] if field != 'discord' else new_status)} Discord\n"
+                f"🔘 {toggle(settings['require_rank'] if field != 'rank' else new_status)} Актуальный MMR\n"
+                f"🔘 {toggle(settings['require_peak_rank'] if field != 'peak_rank' else new_status)} Пиковый MMR\n"
+                f"🔘 {toggle(settings['require_tracker'] if field != 'tracker' else new_status)} RL Tracker\n\n"
+                f"Нажмите на поле чтобы вкл/выкл"
+            )
+            await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+            status_text = "включено" if new_status else "отключено"
+            await callback.answer(f"{'✅' if new_status else '❌'} {field} {status_text}")
+        else:
+            await callback.answer("❌ Ошибка загрузки настроек")
+    
+    # Post-registration message view
+    elif action == "postreg:view":
+        post_msg = await get_active_post_registration_message()
+        if post_msg:
+            text = f"📝 <b>Сообщение после регистрации:</b>\n\n{post_msg['message']}\n\n🆔 ID: {post_msg['id']}"
+        else:
+            text = "📝 Сообщение после регистрации не установлено\n\nПо умолчанию показывается: '🎉 Ты успешно зарегистрирован!'"
+        await callback.message.edit_text(text, reply_markup=kb_post_reg_menu, parse_mode="HTML")
+        await callback.answer()
+    
+    elif action == "postreg:edit":
+        await callback.message.edit_text("📝 Введите новое сообщение после регистрации:")
+        await state.set_state(Admin.waiting_post_reg_message)
+        await callback.answer()
+
+
+# ── Post Registration Message Handler ──────────────────────────────────────────
+async def post_reg_message_edit(msg: types.Message, state: FSMContext):
+    """Обработка ввода сообщения после регистрации"""
+    message = msg.text.strip()
+    await add_post_registration_message(message)
+    await state.clear()
+    await msg.answer(
+        "✅ Сообщение после регистрации обновлено!",
+        reply_markup=kb_admin_panel
+    )
 
 
 async def admin_kick_id_handler(msg: types.Message, state: FSMContext):

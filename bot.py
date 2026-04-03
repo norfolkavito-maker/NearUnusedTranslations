@@ -23,6 +23,7 @@ from handlers import (
     contact_admins_handler, contact_admins_message_handler, discord_handler,
     superuser_command, superuser_password_handler, superuser_callback, superuser_new_password_handler,
     superuser_restore_handler,
+    post_reg_message_edit,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -174,6 +175,9 @@ def register_handlers(dp: Dispatcher):
     # contact admins
     dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
     dp.message.register(contact_admins_message_handler, ContactAdmin.waiting_message)
+    
+    # post registration message
+    dp.message.register(post_reg_message_edit, Admin.waiting_post_reg_message)
 
 
 # Admin management callbacks

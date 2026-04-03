@@ -106,11 +106,12 @@ def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarku
 kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="📋 Список участников", callback_data="adm:list")],
     [InlineKeyboardButton(text="🎮 Удобный список игроков", callback_data="adm:players")],
-    [InlineKeyboardButton(text="📊 Статистика", callback_data="adm:stats")],
     [InlineKeyboardButton(text="👥 Управление админами", callback_data="adm:admins")],
     [InlineKeyboardButton(text="📢 Настройки канала", callback_data="adm:channel")],
     [InlineKeyboardButton(text="🏆 Управление турнирами", callback_data="adm:tournaments")],
     [InlineKeyboardButton(text="📝 Приветственное сообщение", callback_data="adm:welcome")],
+    [InlineKeyboardButton(text="📝 Сообщение после регистрации", callback_data="adm:post_reg_msg")],
+    [InlineKeyboardButton(text="⚙️ Настройки регистрации", callback_data="adm:reg_settings")],
     [InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications")],
     [
         InlineKeyboardButton(text="🗑 Удалить игрока", callback_data="adm:kick"),
@@ -143,6 +144,21 @@ kb_tournament_menu = InlineKeyboardMarkup(inline_keyboard=[
 kb_welcome_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="✏️ Изменить сообщение", callback_data="wel:edit")],
     [InlineKeyboardButton(text="👀 Посмотреть текущее", callback_data="wel:view")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
+])
+
+kb_post_reg_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✏️ Изменить сообщение", callback_data="postreg:edit")],
+    [InlineKeyboardButton(text="👀 Посмотреть текущее", callback_data="postreg:view")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
+])
+
+kb_reg_settings = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✅ Epic ID", callback_data="regset:epic")],
+    [InlineKeyboardButton(text="✅ Discord", callback_data="regset:discord")],
+    [InlineKeyboardButton(text="✅ Актуальный MMR", callback_data="regset:rank")],
+    [InlineKeyboardButton(text="✅ Пиковый MMR", callback_data="regset:peak_rank")],
+    [InlineKeyboardButton(text="✅ RL Tracker", callback_data="regset:tracker")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
