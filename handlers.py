@@ -94,16 +94,49 @@ async def registration_handler(msg: types.Message, state: FSMContext, bot: Bot):
     except Exception:
         pass
 
-    await _start_registration(msg)
-    await state.set_state(Registration.epic_id)
+    await _start_registration(msg, state)
 
 
-async def _start_registration(msg: types.Message):
+async def _start_registration(msg: types.Message, state: FSMContext = None):
+    settings = await get_registration_settings()
+    require_epic = settings.get("require_epic", True) if settings else True
+    
+    if require_epic:
+        await msg.answer(
+            "📝 <b>Регистрация</b>\n\n"
+            "1️⃣ Введи свой <b>Epic ID</b>:",
+            parse_mode="HTML"
+        )
+        if state:
+            await state.set_state(Registration.epic_id)
+    else:
+        # Skip Epic ID, go to Discord
+        await _process_after_epic(msg, state)
+
+
+async def _process_after_epic(msg: types.Message, state: FSMContext = None):
+    """После Epic ID (или пропуск) — проверяем нужно ли спрашивать Discord"""
+    settings = await get_registration_settings()
+    require_discord = settings.get("require_discord", True) if settings else True
+    
+    if require_discord:
+        await msg.answer("2️⃣ Введи свой <b>Discord</b> (например User#1234):", parse_mode="HTML")
+        if state:
+            await state.set_state(Registration.discord)
+    else:
+        # Skip Discord, go to MMR selection
+        await _process_after_discord(msg, state)
+
+
+async def _process_after_discord(msg: types.Message, state: FSMContext = None):
+    """После Discord (или пропуск) — показываем выбор MMR"""
     await msg.answer(
-        "📝 <b>Регистрация</b>\n\n"
-        "1️⃣ Введи свой <b>Epic ID</b>:",
+        "3️⃣ Выбери свой <b>актуальный MMR</b>:",
+        reply_markup=kb_tiers("r"),
         parse_mode="HTML"
     )
+    if state:
+        await state.set_state(Registration.rank)
 
 
 # ── Callback: повторная проверка подписки ────────────────────────────────────
@@ -142,18 +175,21 @@ async def sub_check_callback(callback: CallbackQuery, state: FSMContext, bot: Bo
 # ── Шаги регистрации ─────────────────────────────────────────────────────────
 async def process_epic_id(msg: types.Message, state: FSMContext):
     await state.update_data(epic=msg.text)
-    await msg.answer("2️⃣ Введи свой <b>Discord</b> (например User#1234):", parse_mode="HTML")
-    await state.set_state(Registration.discord)
+    # Проверяем нужно ли спрашивать Discord
+    settings = await get_registration_settings()
+    require_discord = settings.get("require_discord", True) if settings else True
+    
+    if require_discord:
+        await msg.answer("2️⃣ Введи свой <b>Discord</b> (например User#1234):", parse_mode="HTML")
+        await state.set_state(Registration.discord)
+    else:
+        # Skip Discord, go to MMR selection
+        await _process_after_discord(msg, state)
 
 
 async def process_discord(msg: types.Message, state: FSMContext):
     await state.update_data(discord=msg.text)
-    await msg.answer(
-        "3️⃣ Выбери свой <b>актуальный MMR</b>:",
-        reply_markup=kb_tiers("r"),
-        parse_mode="HTML"
-    )
-    await state.set_state(Registration.rank)
+    await _process_after_discord(msg, state)
 
 
 # ── Выбор тира ───────────────────────────────────────────────────────────────
@@ -574,7 +610,9 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         else:
             text = "⚠️ Ошибка загрузки настроек"
         
-        await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+        from keyboards import make_kb_reg_settings
+        dynamic_kb = make_kb_reg_settings(settings)
+        await callback.message.edit_text(text, reply_markup=dynamic_kb, parse_mode="HTML")
         await callback.answer()
 
     elif action == "notifications":
@@ -729,11 +767,14 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
                 f"🔘 {toggle(settings['require_tracker'])} RL Tracker\n\n"
                 f"Нажмите на поле чтобы вкл/выкл"
             )
+            # Используем динамическую клавиатуру с актуальными статусами
+            from keyboards import make_kb_reg_settings
+            dynamic_kb = make_kb_reg_settings(settings)
             try:
-                await callback.message.edit_text(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+                await callback.message.edit_text(text, reply_markup=dynamic_kb, parse_mode="HTML")
             except Exception as e:
                 print(f"[DEBUG] reg_settings: edit_text failed: {e}")
-                await callback.message.answer(text, reply_markup=kb_reg_settings, parse_mode="HTML")
+                await callback.message.answer(text, reply_markup=dynamic_kb, parse_mode="HTML")
             status_text = "включено" if new_status else "отключено"
             await callback.answer(f"{'✅' if new_status else '❌'} {field} {status_text}")
         except Exception as e:

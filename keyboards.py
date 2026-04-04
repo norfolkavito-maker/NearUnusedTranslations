@@ -160,14 +160,32 @@ kb_post_reg_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
-kb_reg_settings = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✅ Epic ID", callback_data="adm:regset:epic")],
-    [InlineKeyboardButton(text="✅ Discord", callback_data="adm:regset:discord")],
-    [InlineKeyboardButton(text="✅ Актуальный MMR", callback_data="adm:regset:rank")],
-    [InlineKeyboardButton(text="✅ Пиковый MMR", callback_data="adm:regset:peak_rank")],
-    [InlineKeyboardButton(text="✅ RL Tracker", callback_data="adm:regset:tracker")],
-    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
-])
+def make_kb_reg_settings(settings=None):
+    """Динамическая клавиатура настроек регистрации с актуальными статусами"""
+    defaults = {
+        "require_epic": True,
+        "require_discord": True,
+        "require_rank": True,
+        "require_peak_rank": True,
+        "require_tracker": True,
+    }
+    if settings:
+        defaults.update(settings)
+    
+    def icon(field):
+        return "✅" if defaults.get(field, True) else "❌"
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"{icon('require_epic')} Epic ID", callback_data="adm:regset:epic")],
+        [InlineKeyboardButton(text=f"{icon('require_discord')} Discord", callback_data="adm:regset:discord")],
+        [InlineKeyboardButton(text=f"{icon('require_rank')} Актуальный MMR", callback_data="adm:regset:rank")],
+        [InlineKeyboardButton(text=f"{icon('require_peak_rank')} Пиковый MMR", callback_data="adm:regset:peak_rank")],
+        [InlineKeyboardButton(text=f"{icon('require_tracker')} RL Tracker", callback_data="adm:regset:tracker")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
+    ])
+
+# Для обратной совместимости
+kb_reg_settings = make_kb_reg_settings()
 
 kb_notifications_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="➕ Создать рассылку", callback_data="notif:create")],
