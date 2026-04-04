@@ -685,8 +685,13 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Отменено")
     
     # Registration settings toggle
-    elif action in ("epic", "discord", "rank", "peak_rank", "tracker"):
-        field = action
+    elif action == "regset":
+        # callback_data format: adm:regset:epic → parts = ["adm", "regset", "epic"]
+        parts = callback.data.split(":")
+        field = parts[2] if len(parts) > 2 else None
+        if not field:
+            await callback.answer("❌ Ошибка: не указано поле")
+            return
         print(f"[DEBUG] reg_settings: field={field}")
         try:
             settings = await get_registration_settings()

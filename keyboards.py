@@ -161,11 +161,11 @@ kb_post_reg_menu = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 kb_reg_settings = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✅ Epic ID", callback_data="regset:epic")],
-    [InlineKeyboardButton(text="✅ Discord", callback_data="regset:discord")],
-    [InlineKeyboardButton(text="✅ Актуальный MMR", callback_data="regset:rank")],
-    [InlineKeyboardButton(text="✅ Пиковый MMR", callback_data="regset:peak_rank")],
-    [InlineKeyboardButton(text="✅ RL Tracker", callback_data="regset:tracker")],
+    [InlineKeyboardButton(text="✅ Epic ID", callback_data="adm:regset:epic")],
+    [InlineKeyboardButton(text="✅ Discord", callback_data="adm:regset:discord")],
+    [InlineKeyboardButton(text="✅ Актуальный MMR", callback_data="adm:regset:rank")],
+    [InlineKeyboardButton(text="✅ Пиковый MMR", callback_data="adm:regset:peak_rank")],
+    [InlineKeyboardButton(text="✅ RL Tracker", callback_data="adm:regset:tracker")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
