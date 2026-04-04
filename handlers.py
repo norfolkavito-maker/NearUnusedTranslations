@@ -45,7 +45,10 @@ async def _main_kb(user_id: int):
 
 
 # ── /start ───────────────────────────────────────────────────────────────────
-async def start_handler(msg: types.Message):
+async def start_handler(msg: types.Message, state: FSMContext):
+    # Очищаем state чтобы пользователь начинал с чистого листа
+    await state.clear()
+    
     try:
         welcome = await get_active_welcome_message()
         if welcome and welcome.get("message"):
@@ -1733,3 +1736,39 @@ async def superuser_restore_handler(msg: types.Message, state: FSMContext):
     except Exception as e:
         await msg.answer(f"❌ Ошибка: {e}")
         await log_bot("ERROR", f"Ошибка восстановления: {e}")
+
+
+# ── Fallback handlers для старых/неизвестных callback'ов и сообщений ──────────
+async def unknown_callback_fallback(callback: CallbackQuery):
+    """Fallback для неизвестных callback'ов — показывает главное меню"""
+    try:
+        await callback.answer("⚠️ Интерфейс обновился. Используйте главное меню.", show_alert=False)
+        kb = await _main_kb(callback.from_user.id)
+        await callback.message.answer(
+            "🔄 <b>Интерфейс бота обновился!</b>\n\n"
+            "Пожалуйста, используйте кнопки главного меню:",
+            reply_markup=kb,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"[FALLBACK] Error in unknown_callback_fallback: {e}")
+
+
+async def unknown_message_fallback(msg: types.Message, state: FSMContext):
+    """Fallback для неизвестных текстовых сообщений — показывает главное меню"""
+    # Проверяем не в состоянии ли пользователь
+    current_state = await state.get_state()
+    if current_state is not None:
+        # Если пользователь в состоянии — не перехватываем
+        return
+    
+    # Игнорируем команды начинающиеся с /
+    if msg.text and msg.text.startswith('/'):
+        return
+    
+    # Показываем главное меню
+    kb = await _main_kb(msg.from_user.id)
+    await msg.answer(
+        "🔄 <b>Используйте кнопки меню:</b>",
+        reply_markup=kb
+    )
