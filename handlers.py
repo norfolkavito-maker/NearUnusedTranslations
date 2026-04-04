@@ -202,6 +202,18 @@ async def on_tier(callback: CallbackQuery, state: FSMContext):
     tier_idx = int(tier_idx_str)
     tier_name = TIERS[tier_idx][1]
     
+    # SSL (индекс 7) — сразу ручной ввод MMR
+    if tier_idx == 7:
+        label = "актуальный" if prefix == "r" else "пиковый"
+        await callback.message.edit_text(
+            f"⚡ <b>SSL</b> — после SSL ранга только MMR имеет значение.\n\n"
+            f"✏️ Введи свой <b>{label} MMR</b> числом (например: 2100):",
+            parse_mode="HTML"
+        )
+        await state.set_state(Registration.rank_mmr if prefix == "r" else Registration.peak_rank_mmr)
+        await callback.answer()
+        return
+    
     await callback.message.edit_text(
         f"Выбери подтир <b>{tier_name}</b>:",
         reply_markup=kb_subtiers(prefix, tier_idx),
@@ -1337,20 +1349,24 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
         await msg.answer("⚠️ Произошла ошибка при отправке сообщения")
 
 
-# ── Discord Handler ───────────────────────────────────────────────────────────────
+# ── Discord / TG Chat Handler ───────────────────────────────────────────────────────
 async def discord_handler(msg: types.Message):
     settings = await get_channel_settings()
     if settings:
         discord_link = settings.get("discord_link", "https://discord.gg/your-server")
+        channel_link = settings.get("channel_link", CHANNEL_LINK)
     else:
         discord_link = "https://discord.gg/your-server"
+        channel_link = CHANNEL_LINK
     
     await msg.answer(
-        f"🎮 <b>Наш Discord сервер:</b>\n\n"
-        f"🔗 {discord_link}\n\n"
+        f"💬 <b>Наши чаты:</b>\n\n"
+        f"🎮 <b>Discord сервер:</b>\n🔗 {discord_link}\n\n"
+        f"📱 <b>Telegram чат:</b>\n🔗 {channel_link}\n\n"
         f"Присоединяйтесь к сообществу!",
         reply_markup=await _main_kb(msg.from_user.id),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        disable_web_page_preview=True
     )
 
 

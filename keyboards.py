@@ -4,7 +4,7 @@ from config import CHANNEL_LINK
 kb_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
-        [KeyboardButton(text="💬 Discord"), KeyboardButton(text="💬 ТГ чат")],
+        [KeyboardButton(text="💬 Discord / TG чат")],
         [KeyboardButton(text="📨 Обратиться к админам")]
     ],
     resize_keyboard=True
@@ -14,7 +14,7 @@ kb_admin_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
         [KeyboardButton(text="⚙️ Админ-панель"), KeyboardButton(text="📨 Обратиться к админам")],
-        [KeyboardButton(text="💬 Discord"), KeyboardButton(text="💬 ТГ чат")]
+        [KeyboardButton(text="💬 Discord / TG чат")]
     ],
     resize_keyboard=True
 )
@@ -230,6 +230,16 @@ def kb_tiers(prefix: str) -> InlineKeyboardMarkup:
 
 def kb_subtiers(prefix: str, tier_idx: int) -> InlineKeyboardMarkup:
     name = TIERS[tier_idx][1]
+    # ГЧ — только 3 подтира (ГЧ1, ГЧ2, ГЧ3)
+    if tier_idx == 6:
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text=f"ГЧ1", callback_data=f"rs:{prefix}:{tier_idx}:1"),
+                InlineKeyboardButton(text=f"ГЧ2", callback_data=f"rs:{prefix}:{tier_idx}:2"),
+                InlineKeyboardButton(text=f"ГЧ3", callback_data=f"rs:{prefix}:{tier_idx}:3"),
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"rb:{prefix}")],
+        ])
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text=f"{name} 1", callback_data=f"rs:{prefix}:{tier_idx}:1"),

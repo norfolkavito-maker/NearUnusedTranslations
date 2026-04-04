@@ -115,7 +115,7 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(registration_handler, F.text == "🎮 Регистрация")
     dp.message.register(me_handler, F.text == "📋 Мои данные")
     dp.message.register(delete_self_handler, F.text == "🗑 Удалить мои данные")
-    dp.message.register(discord_handler, F.text == "🎮 Discord")
+    dp.message.register(discord_handler, F.text == "💬 Discord / TG чат")
     
     # Admin panel
     dp.message.register(admin_panel_handler, F.text == "⚙️ Админ-панель")
