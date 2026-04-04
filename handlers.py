@@ -19,6 +19,10 @@ from db import (
     get_registration_settings, update_registration_settings,
     add_post_registration_message, get_active_post_registration_message, update_post_registration_message,
     update_user_field,
+    # User Messages
+    add_user_message, get_unread_messages, get_all_messages, mark_message_read, mark_message_replied, get_unread_messages_count,
+    # Duplicates
+    find_duplicate_usernames, delete_user_by_tg_id,
 )
 from states import Registration, Admin, ContactAdmin, SuperUser
 from keyboards import (

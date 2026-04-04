@@ -122,6 +122,11 @@ def _init_db_sync():
             ("post_registration_messages", """CREATE TABLE IF NOT EXISTS post_registration_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
                 is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
+            ("user_messages", """CREATE TABLE IF NOT EXISTS user_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, from_tg_id INTEGER,
+                from_username TEXT, message TEXT, is_read BOOLEAN DEFAULT 0,
+                replied BOOLEAN DEFAULT 0, admin_reply TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
         ]
         for table_name, sql in tables:
             try:
@@ -697,3 +702,105 @@ async def update_post_registration_message(message_id, message):
         await _safe_query("UPDATE post_registration_messages SET message = ? WHERE id = ?", (message, message_id))
     except Exception as e:
         print(f"❌ Ошибка обновления сообщения: {e}")
+
+
+# ── User Messages (Contact Admins) ───────────────────────────────────────────
+async def add_user_message(from_tg_id, from_username, message):
+    """Сохранить новое сообщение от пользователя"""
+    try:
+        cur = await _safe_query(
+            "INSERT INTO user_messages (from_tg_id, from_username, message) VALUES (?, ?, ?)",
+            (from_tg_id, from_username, message)
+        )
+        if cur:
+            return cur.lastrowid
+        return None
+    except Exception as e:
+        print(f"❌ Ошибка сохранения сообщения: {e}")
+        return None
+
+
+async def get_unread_messages():
+    """Получить непрочитанные сообщения"""
+    try:
+        cur = await _safe_query("SELECT * FROM user_messages WHERE is_read = 0 ORDER BY created_at DESC")
+        if cur is None:
+            return []
+        rows = _fetchall(cur)
+        return [dict(zip(["id","from_tg_id","from_username","message","is_read","replied","admin_reply","created_at"], r)) for r in rows]
+    except Exception:
+        return []
+
+
+async def get_all_messages(limit=50):
+    """Получить все сообщения"""
+    try:
+        cur = await _safe_query("SELECT * FROM user_messages ORDER BY created_at DESC LIMIT ?", (limit,))
+        if cur is None:
+            return []
+        rows = _fetchall(cur)
+        return [dict(zip(["id","from_tg_id","from_username","message","is_read","replied","admin_reply","created_at"], r)) for r in rows]
+    except Exception:
+        return []
+
+
+async def mark_message_read(msg_id):
+    """Отметить сообщение как прочитанное"""
+    try:
+        await _safe_query("UPDATE user_messages SET is_read = 1 WHERE id = ?", (msg_id,))
+    except Exception as e:
+        print(f"❌ Ошибка отметки сообщения: {e}")
+
+
+async def mark_message_replied(msg_id, admin_reply):
+    """Отметить сообщение как отвеченное"""
+    try:
+        await _safe_query("UPDATE user_messages SET replied = 1, admin_reply = ? WHERE id = ?", (admin_reply, msg_id))
+    except Exception as e:
+        print(f"❌ Ошибка обновления ответа: {e}")
+
+
+async def get_unread_messages_count():
+    """Получить количество непрочитанных сообщений"""
+    try:
+        cur = await _safe_query("SELECT COUNT(*) FROM user_messages WHERE is_read = 0")
+        if cur is None:
+            return 0
+        row = _fetchone(cur)
+        return row[0] if row else 0
+    except Exception:
+        return 0
+
+
+# ── Duplicate Detection ──────────────────────────────────────────────────────
+async def find_duplicate_usernames():
+    """Найти дубликаты по username (без учёта @)"""
+    try:
+        cur = await _safe_query("""
+            SELECT LOWER(REPLACE(username, '@', '')) as clean_username, COUNT(*) as cnt,
+                   GROUP_CONCAT(tg_id) as ids, GROUP_CONCAT(username) as usernames
+            FROM users 
+            WHERE username IS NOT NULL AND username != '' 
+            GROUP BY LOWER(REPLACE(username, '@', ''))
+            HAVING cnt > 1
+            ORDER BY cnt DESC
+        """)
+        if cur is None:
+            return []
+        rows = _fetchall(cur)
+        return [dict(zip(["clean_username","cnt","ids","usernames"], r)) for r in rows]
+    except Exception as e:
+        print(f"❌ Ошибка поиска дубликатов: {e}")
+        return []
+
+
+async def delete_user_by_tg_id(tg_id):
+    """Удалить конкретного пользователя по ID"""
+    try:
+        # Сначала получаем данные пользователя для уведомления
+        user = await get_user(tg_id)
+        await _safe_query("DELETE FROM users WHERE tg_id = ?", (tg_id,))
+        return user
+    except Exception as e:
+        print(f"❌ Ошибка удаления пользователя: {e}")
+        return None

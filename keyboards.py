@@ -152,6 +152,7 @@ kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="📊 Логи активности", callback_data="su:activity_logs")],
     [InlineKeyboardButton(text="📝 Логи бота", callback_data="su:bot_logs")],
     [InlineKeyboardButton(text="👥 Все пользователи", callback_data="su:all_users")],
+    [InlineKeyboardButton(text="🔍 Найти дубликаты", callback_data="su:find_duplicates")],
     [InlineKeyboardButton(text="💾 Создать бэкап", callback_data="su:backup")],
     [InlineKeyboardButton(text="📥 Скачать последний бэкап", callback_data="su:download_backup")],
     [InlineKeyboardButton(text="📂 Восстановить из бэкапа", callback_data="su:restore")],
@@ -164,6 +165,18 @@ kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 kb_superuser_back = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")],
+])
+
+kb_user_messages = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="👁 Посмотреть", callback_data="msg:view:{id}")],
+    [InlineKeyboardButton(text="💬 Ответить", callback_data="msg:reply:{id}")],
+    [InlineKeyboardButton(text="✅ Отметить прочитанным", callback_data="msg:read:{id}")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")],
+])
+
+kb_msg_back = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📋 К сообщениям", callback_data="su:user_messages")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")],
 ])
 

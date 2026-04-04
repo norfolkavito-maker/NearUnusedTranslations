@@ -35,6 +35,7 @@ class Admin(StatesGroup):
     waiting_broadcast_message = State()
     waiting_post_reg_message = State()
     waiting_search_query = State()
+    waiting_user_reply = State()  # Для ответа пользователю
 
 
 class ContactAdmin(StatesGroup):
