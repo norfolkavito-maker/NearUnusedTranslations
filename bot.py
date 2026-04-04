@@ -28,6 +28,22 @@ from handlers import (
     post_reg_edit_callback, post_reg_view_callback,
     my_data_edit_callback, my_data_back_callback, my_data_edit_handler,
     unknown_message_fallback,
+    # Admin ReplyKeyboard handlers
+    admin_users_handler, admin_tournaments_handler, admin_messages_handler,
+    admin_broadcasts_handler, admin_settings_handler, admin_admins_handler,
+    admin_stats_handler, admin_back_handler,
+    admin_users_list_handler, admin_players_handler, admin_kick_handler,
+    admin_deleteall_handler,
+    admin_welcome_handler, admin_post_reg_handler, admin_view_welcome_handler,
+    admin_broadcast_send_handler,
+    admin_reg_settings_handler, admin_channel_handler,
+    admin_add_handler, admin_remove_handler, admin_list_handler,
+    admin_tour_create_handler, admin_tour_list_handler, admin_tour_notif_handler,
+    admin_notif_create_handler, admin_notif_broadcast_handler, admin_notif_pending_handler,
+    admin_channel_edit_handler, admin_channel_discord_handler, admin_channel_toggle_handler,
+    admin_channel_view_handler,
+    admin_welcome_edit_handler, admin_welcome_view_handler,
+    admin_post_reg_edit_handler, admin_post_reg_view_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -118,8 +134,63 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(delete_self_handler, F.text == "🗑 Удалить мои данные")
     dp.message.register(discord_handler, F.text == "💬 Discord / TG чат")
     
-    # Admin panel
+    # Admin panel (ReplyKeyboard)
     dp.message.register(admin_panel_handler, F.text == "⚙️ Админ-панель")
+    
+    # Admin submenus (ReplyKeyboard)
+    dp.message.register(admin_users_handler, F.text == "👥 Пользователи")
+    dp.message.register(admin_tournaments_handler, F.text == "🏆 Турниры")
+    dp.message.register(admin_messages_handler, F.text == "✉️ Сообщения")
+    dp.message.register(admin_broadcasts_handler, F.text == "📢 Рассылки")
+    dp.message.register(admin_settings_handler, F.text == "⚙️ Настройки")
+    dp.message.register(admin_admins_handler, F.text == "👑 Админы")
+    dp.message.register(admin_stats_handler, F.text == "📊 Статистика")
+    dp.message.register(admin_back_handler, F.text == "◀️ Назад")
+    
+    # Users sub-submenus
+    dp.message.register(admin_users_list_handler, F.text == "📋 Список участников")
+    dp.message.register(admin_players_handler, F.text == "🎮 Игроки (подробно)")
+    dp.message.register(admin_kick_handler, F.text == "🗑 Удалить игрока")
+    dp.message.register(admin_deleteall_handler, F.text == "💥 Удалить всех")
+    
+    # Messages sub-submenus
+    dp.message.register(admin_welcome_handler, F.text == "✏️ Приветствие")
+    dp.message.register(admin_post_reg_handler, F.text == "✏️ После рег.")
+    dp.message.register(admin_view_welcome_handler, F.text == "👀 Просмотр")
+    dp.message.register(admin_broadcast_send_handler, F.text == "📤 Рассылка")
+    
+    # Settings sub-submenus
+    dp.message.register(admin_reg_settings_handler, F.text == "⚙️ Настройки рег.")
+    dp.message.register(admin_channel_handler, F.text == "📡 Канал")
+    
+    # Admins sub-submenus
+    dp.message.register(admin_add_handler, F.text == "➕ Добавить админа")
+    dp.message.register(admin_remove_handler, F.text == "🗑 Удалить админа")
+    dp.message.register(admin_list_handler, F.text == "📋 Список админов")
+    
+    # Tournament sub-submenus
+    dp.message.register(admin_tour_create_handler, F.text == "➕ Создать турнир")
+    dp.message.register(admin_tour_list_handler, F.text == "📋 Список турниров")
+    dp.message.register(admin_tour_notif_handler, F.text == "🔔 Настроить уведомления")
+    
+    # Notifications sub-submenus
+    dp.message.register(admin_notif_create_handler, F.text == "➕ Создать рассылку")
+    dp.message.register(admin_notif_broadcast_handler, F.text == "📤 Рассылка всем пользователям")
+    dp.message.register(admin_notif_pending_handler, F.text == "📋 Отложенные рассылки")
+    
+    # Channel sub-submenus
+    dp.message.register(admin_channel_edit_handler, F.text == "✏️ Изменить ссылку канала")
+    dp.message.register(admin_channel_discord_handler, F.text == "💬 Изменить Discord ссылку")
+    dp.message.register(admin_channel_toggle_handler, F.text == "🔔 Требовать подписку")
+    dp.message.register(admin_channel_view_handler, F.text == "👀 Посмотреть настройки")
+    
+    # Welcome sub-submenus
+    dp.message.register(admin_welcome_edit_handler, F.text == "✏️ Изменить сообщение")
+    dp.message.register(admin_welcome_view_handler, F.text == "👀 Посмотреть текущее")
+    
+    # Post-reg sub-submenus
+    dp.message.register(admin_post_reg_edit_handler, F.text == "✏️ Изменить сообщение")
+    dp.message.register(admin_post_reg_view_handler, F.text == "👀 Посмотреть текущее")
     
     # subscription recheck
     dp.callback_query.register(sub_check_callback, F.data == "sub_check")

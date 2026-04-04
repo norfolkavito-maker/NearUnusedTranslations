@@ -30,6 +30,25 @@ from keyboards import (
     kb_users_menu, kb_messages_menu, kb_settings_menu,
     TIERS, get_rank_label, get_auto_mmr, get_mmr_range,
 )
+
+def safe_edit_text(msg, text, reply_markup=None, parse_mode="HTML"):
+    """Безопасное редактирование сообщения с обработкой 'message is not modified'"""
+    try:
+        if reply_markup:
+            return msg.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+        else:
+            return msg.edit_text(text, parse_mode=parse_mode)
+    except Exception as e:
+        if "message is not modified" in str(e):
+            return None
+        print(f"[safe_edit_text] Error: {e}")
+        try:
+            if reply_markup:
+                return msg.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
+            else:
+                return msg.answer(text, parse_mode=parse_mode)
+        except:
+            return None
 from config import CHANNEL_ID, CHANNEL_LINK, GROUP_LINK, ADMIN_IDS
 
 
@@ -592,7 +611,7 @@ async def my_data_edit_handler(msg: types.Message, state: FSMContext):
     await state.clear()
 
 
-# ── Админ-панель ─────────────────────────────────────────────────────────────
+# ── Админ-панель (ReplyKeyboard) ─────────────────────────────────────────────
 async def admin_panel_handler(msg: types.Message):
     if not await is_admin(msg.from_user.id):
         return
@@ -602,6 +621,353 @@ async def admin_panel_handler(msg: types.Message):
         reply_markup=kb_admin_panel,
         parse_mode="HTML"
     )
+
+# ── Admin submenu handlers (ReplyKeyboard) ───────────────────────────────────
+async def admin_users_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("👥 <b>Управление пользователями:</b>", reply_markup=kb_users_menu, parse_mode="HTML")
+
+async def admin_tournaments_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("🏆 <b>Управление турнирами:</b>", reply_markup=kb_tournament_menu, parse_mode="HTML")
+
+async def admin_messages_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("✉️ <b>Управление сообщениями:</b>", reply_markup=kb_messages_menu, parse_mode="HTML")
+
+async def admin_broadcasts_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📢 <b>Управление рассылками:</b>", reply_markup=kb_notifications_menu, parse_mode="HTML")
+
+async def admin_settings_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("⚙️ <b>Настройки:</b>", reply_markup=kb_settings_menu, parse_mode="HTML")
+
+async def admin_admins_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("👑 <b>Управление админами:</b>", reply_markup=kb_admin_menu, parse_mode="HTML")
+
+async def admin_stats_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    count = await count_users()
+    admins = await get_all_admins()
+    await msg.answer(
+        f"📈 <b>Статистика:</b>\n\n"
+        f"👥 Пользователей: <b>{count}</b>\n"
+        f"👑 Администраторов: <b>{len(admins)}</b>",
+        reply_markup=kb_admin_panel,
+        parse_mode="HTML"
+    )
+
+async def admin_back_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    count = await count_users()
+    await msg.answer(
+        f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
+        reply_markup=kb_admin_panel,
+        parse_mode="HTML"
+    )
+
+# ── Users sub-submenus ───────────────────────────────────────────────────────
+async def admin_users_list_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    users = await get_all_users()
+    if not users:
+        await msg.answer("👥 Зарегистрированных игроков пока нет", reply_markup=kb_users_menu)
+        return
+    text = f"👥 Участники ({len(users)}):\n\n"
+    for i, u in enumerate(users, 1):
+        text += f"{i}. {u.get('username','—')} | <code>{u['tg_id']}</code>\n   Epic: {u['epic']} | Discord: {u['discord']}\n   MMR: {u['rank']} | Пик: {u['peak_rank']}\n\n"
+    for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+        await msg.answer(chunk, parse_mode="HTML")
+
+async def admin_players_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    users = await get_all_users()
+    if not users:
+        await msg.answer("👥 Зарегистрированных игроков пока нет", reply_markup=kb_users_menu)
+        return
+    text = f"👥 Зарегистрированные игроки ({len(users)}):\n\n"
+    for i, user in enumerate(users, 1):
+        username = user.get('username', 'Без username')
+        if username and not username.startswith('@'):
+            username = f"@{username}"
+        text += f"{i}. {username} (ID: {user['tg_id']})\n   Epic: {user['epic']}\n   Discord: {user['discord']}\n   Ранг: {user['rank']} | Пик: {user['peak_rank']}\n   Tracker: {user.get('tracker', 'Не указан')}\n\n"
+    for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+        await msg.answer(chunk)
+
+async def admin_kick_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("🗑 Введи <b>Telegram ID</b> игрока которого хочешь удалить:", parse_mode="HTML")
+    await state.set_state(Admin.waiting_kick_id)
+
+async def admin_deleteall_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    count = await count_users()
+    await msg.answer(
+        f"⚠️ <b>Удалить всех {count} участников?</b>\nЭто действие необратимо!",
+        reply_markup=kb_deleteall_confirm,
+        parse_mode="HTML"
+    )
+
+# ── Messages sub-submenus ────────────────────────────────────────────────────
+async def admin_welcome_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("✏️ Введи новое приветственное сообщение:")
+    await state.set_state(Admin.waiting_welcome_message)
+
+async def admin_post_reg_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("✏️ Введи новое сообщение после регистрации:")
+    await state.set_state(Admin.waiting_post_reg_message)
+
+async def admin_view_welcome_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    welcome = await get_active_welcome_message()
+    if welcome and welcome.get('message'):
+        text = f"📝 <b>Текущее приветственное сообщение:</b>\n\n{welcome['message']}"
+    else:
+        text = "📝 Приветственное сообщение не установлено"
+    await msg.answer(text, reply_markup=kb_messages_menu, parse_mode="HTML")
+
+async def admin_broadcast_send_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📢 <b>Рассылка всем пользователям</b>\n\nВведите текст сообщения:", parse_mode="HTML")
+    await state.set_state(Admin.waiting_broadcast_message)
+
+# ── Settings sub-submenus ────────────────────────────────────────────────────
+async def admin_reg_settings_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    settings = await get_registration_settings()
+    if settings:
+        def toggle(status):
+            return "✅" if status else "❌"
+        text = (
+            f"⚙️ <b>Настройки регистрации:</b>\n\n"
+            f"🔘 {toggle(settings['require_epic'])} Epic ID\n"
+            f"🔘 {toggle(settings['require_discord'])} Discord\n"
+            f"🔘 {toggle(settings['require_rank'])} Актуальный MMR\n"
+            f"🔘 {toggle(settings['require_peak_rank'])} Пиковый MMR\n"
+            f"🔘 {toggle(settings['require_tracker'])} RL Tracker\n\n"
+            f"Нажмите на поле чтобы вкл/выкл"
+        )
+    else:
+        text = "⚠️ Ошибка загрузки настроек"
+    from keyboards import make_kb_reg_settings
+    dynamic_kb = make_kb_reg_settings(settings)
+    await msg.answer(text, reply_markup=dynamic_kb, parse_mode="HTML")
+
+async def admin_channel_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    settings = await get_channel_settings()
+    if settings:
+        status = "✅ Включено" if settings.get("require_subscription") else "❌ Выключено"
+        text = (
+            f"📢 <b>Настройки канала:</b>\n\n"
+            f"🔗 Ссылка на канал: {settings.get('channel_link', 'Не установлена')}\n"
+            f"🎮 Discord ссылка: {settings.get('discord_link', 'Не установлена')}\n"
+            f"🔔 Требовать подписку: {status}"
+        )
+    else:
+        text = "📢 Настройки канала не установлены"
+    await msg.answer(text, reply_markup=kb_settings_menu, parse_mode="HTML")
+
+# ── Admins sub-submenus ──────────────────────────────────────────────────────
+async def admin_add_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📝 Введите ID пользователя для добавления в админы:")
+    await state.set_state(Admin.waiting_admin_id)
+    await state.update_data(admin_action="add")
+
+async def admin_remove_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📝 Введите ID пользователя для удаления из админов:")
+    await state.set_state(Admin.waiting_admin_id)
+    await state.update_data(admin_action="remove")
+
+async def admin_list_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    admins = await get_all_admins()
+    if not admins:
+        text = "📝 <b>Список администраторов:</b>\n\n➕ Админов пока нет"
+    else:
+        text = "📝 <b>Список администраторов:</b>\n\n"
+        for i, admin in enumerate(admins, 1):
+            username = admin['username'] or 'Без username'
+            added_at = admin['added_at'][:16] if admin['added_at'] else 'Неизвестно'
+            text += f"{i}. @{username} (<code>{admin['tg_id']}</code>)\n   📅 Добавлен: {added_at}\n\n"
+    await msg.answer(text, reply_markup=kb_admin_menu, parse_mode="HTML")
+
+# ── Tournament sub-submenus ──────────────────────────────────────────────────
+async def admin_tour_create_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("🏆 <b>Создание турнира</b>\n\nВведите название турнира:")
+    await state.set_state(Admin.waiting_tournament_name)
+
+async def admin_tour_list_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    tournaments = await get_all_tournaments()
+    if not tournaments:
+        await msg.answer("🏆 Пока нет турниров", reply_markup=kb_tournament_menu)
+        return
+    text = "🏆 <b>Список турниров:</b>\n\n"
+    for tour in tournaments:
+        text += f"🆔 <b>{tour['name']}</b> (ID: {tour['id']})\n📅 {tour['date_time']}\n"
+        if tour["max_players"]:
+            text += f"👥 Макс. игроков: {tour['max_players']}\n"
+        if tour["prize"]:
+            text += f"🏆 Приз: {tour['prize']}\n"
+        text += f"🆔 ID: {tour['id']}\n\n"
+    for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+        await msg.answer(chunk, parse_mode="HTML")
+
+async def admin_tour_notif_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    tournaments = await get_all_tournaments()
+    if not tournaments:
+        await msg.answer("🏆 Сначала создайте турнир", reply_markup=kb_tournament_menu)
+        return
+    buttons = []
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    for tour in tournaments:
+        buttons.append([InlineKeyboardButton(
+            text=f"{tour['name']} ({tour['date_time']})",
+            callback_data=f"notif:tour:{tour['id']}"
+        )])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")])
+    await msg.answer("🏆 Выбери турнир для рассылки:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+# ── Notifications sub-submenus ───────────────────────────────────────────────
+async def admin_notif_create_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    tournaments = await get_all_tournaments()
+    if not tournaments:
+        await msg.answer("🏆 Сначала создайте турнир", reply_markup=kb_notifications_menu)
+        return
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    buttons = []
+    for tour in tournaments:
+        buttons.append([InlineKeyboardButton(
+            text=f"{tour['name']} ({tour['date_time']})",
+            callback_data=f"notif:tour:{tour['id']}"
+        )])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")])
+    await msg.answer("🏆 Выбери турнир для рассылки:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+async def admin_notif_broadcast_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📢 <b>Рассылка всем пользователям</b>\n\nВведите текст сообщения:", parse_mode="HTML")
+    await state.set_state(Admin.waiting_broadcast_message)
+
+async def admin_notif_pending_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    notifications = await get_pending_notifications()
+    if not notifications:
+        await msg.answer("📋 <b>Отложенные рассылки:</b>\n\nНет запланированных рассылок", reply_markup=kb_notifications_menu, parse_mode="HTML")
+        return
+    text = "📋 <b>Отложенные рассылки:</b>\n\n"
+    for notif in notifications:
+        text += f"🏆 Турнир ID: {notif['tournament_id']}\n⏰ Время: {notif['send_time']}\n📝 Сообщение: {notif['message'][:50]}...\n\n"
+    await msg.answer(text, reply_markup=kb_notifications_menu, parse_mode="HTML")
+
+# ── Channel sub-submenus ─────────────────────────────────────────────────────
+async def admin_channel_edit_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📢 <b>Изменение ссылки канала</b>\n\nВведите новую ссылку на канал (например: https://t.me/ebka_news):")
+    await state.set_state(Admin.waiting_channel_link)
+
+async def admin_channel_discord_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("🎮 <b>Изменение Discord ссылки</b>\n\nВведите новую ссылку на Discord (например: https://discord.gg/xxxxx):")
+    await state.set_state(Admin.waiting_discord_link)
+
+async def admin_channel_toggle_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    settings = await get_channel_settings()
+    new_status = not settings.get("require_subscription", False) if settings else True
+    await update_channel_settings(require_subscription=new_status)
+    status_text = "включено" if new_status else "выключено"
+    await msg.answer(f"🔔 Требование подписки {status_text}", reply_markup=kb_channel_menu)
+
+async def admin_channel_view_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    settings = await get_channel_settings()
+    if settings:
+        status = "✅ Включено" if settings.get("require_subscription") else "❌ Выключено"
+        text = (
+            f"📢 <b>Настройки канала:</b>\n\n"
+            f"🔗 Ссылка на канал: {settings.get('channel_link', 'Не установлена')}\n"
+            f"🎮 Discord ссылка: {settings.get('discord_link', 'Не установлена')}\n"
+            f"🔔 Требовать подписку: {status}"
+        )
+    else:
+        text = "📢 Настройки канала не установлены"
+    await msg.answer(text, reply_markup=kb_channel_menu, parse_mode="HTML")
+
+# ── Welcome sub-submenus ─────────────────────────────────────────────────────
+async def admin_welcome_edit_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📝 <b>Изменение приветственного сообщения</b>\n\nВведите новый текст приветствия:")
+    await state.set_state(Admin.waiting_welcome_message)
+
+async def admin_welcome_view_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    welcome = await get_active_welcome_message()
+    if welcome and welcome.get('message'):
+        text = f"📝 <b>Текущее приветственное сообщение:</b>\n\n{welcome['message']}"
+    else:
+        text = "📝 Приветственное сообщение не установлено"
+    await msg.answer(text, reply_markup=kb_welcome_menu, parse_mode="HTML")
+
+# ── Post-reg sub-submenus ────────────────────────────────────────────────────
+async def admin_post_reg_edit_handler(msg: types.Message, state: FSMContext):
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("📝 <b>Сообщение после регистрации</b>\n\nВведите текст, который будет отправлен пользователю после успешной регистрации:")
+    await state.set_state(Admin.waiting_post_reg_message)
+
+async def admin_post_reg_view_handler(msg: types.Message):
+    if not await is_admin(msg.from_user.id):
+        return
+    post_msg = await get_active_post_registration_message()
+    if post_msg:
+        text = f"📝 <b>Текущее сообщение после регистрации:</b>\n\n{post_msg['message']}"
+    else:
+        text = "📝 Сообщение после регистрации не установлено"
+    await msg.answer(text, reply_markup=kb_post_reg_menu, parse_mode="HTML")
 
 
 async def admin_callback(callback: CallbackQuery, state: FSMContext):
