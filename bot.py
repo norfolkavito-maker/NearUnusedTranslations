@@ -191,7 +191,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(superuser_callback, F.data.startswith("su:"))
     
     # contact admins
-    dp.message.register(contact_admins_handler, F.text == "💬 Обратиться к админам")
+    dp.message.register(contact_admins_handler, F.text == "📨 Обратиться к админам")
     dp.message.register(contact_admins_message_handler, ContactAdmin.waiting_message)
     
     # post registration message

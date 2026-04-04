@@ -335,11 +335,65 @@ async def process_peak_rank_mmr_text(msg: types.Message, state: FSMContext):
 
 
 async def process_tracker(msg: types.Message, state: FSMContext):
+    text = msg.text.strip().lower()
+    # Пропуск трекера
+    if text in ["пропуск", "skip", "нет", "-"]:
+        await state.update_data(tracker="")
+        data = await state.get_data()
+        tg_id = msg.from_user.id
+        username = _get_username(msg.from_user)
+        epic_val = data.get("epic", "") or "Не указан"
+        discord_val = data.get("discord", "") or "Не указан"
+        rank_val = data.get("rank", "") or "Не указан"
+        peak_val = data.get("peak_rank", "") or "Не указан"
+        
+        await add_user(
+            tg_id=tg_id, username=username,
+            epic=data.get("epic", ""), discord=data.get("discord", ""),
+            rank=data.get("rank", ""), peak_rank=data.get("peak_rank", ""),
+            tracker=""
+        )
+        await state.clear()
+        await msg.answer(
+            "🎉 <b>Ты успешно зарегистрирован!</b> Ожидай начала турнира.",
+            parse_mode="HTML"
+        )
+        
+        # Уведомление админам
+        try:
+            from aiogram import Bot
+            from config import ADMIN_IDS, TOKEN
+            bot_instance = Bot(token=TOKEN)
+            admins = await get_all_admins()
+            admin_ids = list(ADMIN_IDS) + [admin['tg_id'] for admin in admins]
+            admin_ids = list(set(admin_ids))
+            
+            notification_text = (
+                f"🎉 <b>Новый игрок зарегистрился!</b>\n\n"
+                f"👤 <a href=\"tg://user?id={tg_id}\">@{username}</a> (<code>{tg_id}</code>)\n"
+                f"🎯 Epic: {epic_val}\n"
+                f"💬 Discord: {discord_val}\n"
+                f"🏆 MMR: {rank_val}\n"
+                f"📊 Пик: {peak_val}\n"
+                f"🔗 Tracker: Не указан"
+            )
+            
+            for admin_id in admin_ids:
+                try:
+                    await bot_instance.send_message(chat_id=admin_id, text=notification_text, parse_mode="HTML")
+                except Exception as e:
+                    print(f"Failed to notify admin {admin_id}: {e}")
+            
+            await bot_instance.session.close()
+        except Exception as e:
+            print(f"Error notifying admins about new player: {e}")
+        return
+    
     url = msg.text.strip()
     if not url.startswith("http"):
         await msg.answer(
             "⚠️ Вставь корректную ссылку, начинающуюся с <b>https://</b>\n"
-            "<i>Пример: https://rocketleague.tracker.network/rocket-league/profile/epic/НикнеймTRN/overview</i>",
+            "Или напиши <b>пропуск</b> чтобы пропустить этот шаг.",
             parse_mode="HTML"
         )
         return
@@ -928,7 +982,18 @@ async def delete_self_handler(msg: types.Message):
 
 
 async def delete_self_callback(callback: CallbackQuery):
-    if callback.data == "delete_self:yes":
+    action = callback.data.split(":")[1] if ":" in callback.data else ""
+    
+    if action == "confirm":
+        # Показать подтверждение
+        await callback.message.edit_text(
+            "⚠️ <b>Удалить все твои данные?</b>\n"
+            "Это действие нельзя будет отменить.",
+            reply_markup=kb_delete_confirm,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    elif action == "yes":
         tg_id = callback.from_user.id
         await delete_user(tg_id)
         await callback.message.edit_text(

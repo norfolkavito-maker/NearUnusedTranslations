@@ -30,7 +30,7 @@ kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank"),
      InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],
     [InlineKeyboardButton(text="✏️ Tracker", callback_data="mydata:edit_tracker"),
-     InlineKeyboardButton(text="🗑 Удалить данные", callback_data="delete_self:yes")],
+     InlineKeyboardButton(text="🗑 Удалить", callback_data="delete_self:confirm")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="mydata:back")],
 ])
 
