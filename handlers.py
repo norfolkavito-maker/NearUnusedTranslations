@@ -328,9 +328,15 @@ async def process_tracker(msg: types.Message, state: FSMContext):
         )
         return
     await state.update_data(tracker=url)
+    # ВАЖНО: Получаем data ДО state.clear() иначе данные потеряются!
     data = await state.get_data()
     tg_id = msg.from_user.id
     username = _get_username(msg.from_user)
+    epic_val = data.get("epic", "") or "Не указан"
+    discord_val = data.get("discord", "") or "Не указан"
+    rank_val = data.get("rank", "") or "Не указан"
+    peak_val = data.get("peak_rank", "") or "Не указан"
+    
     await add_user(
         tg_id=tg_id, username=username,
         epic=data.get("epic", ""), discord=data.get("discord", ""),
@@ -355,10 +361,10 @@ async def process_tracker(msg: types.Message, state: FSMContext):
         notification_text = (
             f"🎉 <b>Новый игрок зарегистрился!</b>\n\n"
             f"👤 <a href=\"tg://user?id={tg_id}\">@{username}</a> (<code>{tg_id}</code>)\n"
-            f"🎯 Epic: {data.get('epic', '')}\n"
-            f"💬 Discord: {data.get('discord', '')}\n"
-            f"🏆 MMR: {data.get('rank', '')}\n"
-            f"📊 Пик: {data.get('peak_rank', '')}"
+            f"🎯 Epic: {epic_val}\n"
+            f"💬 Discord: {discord_val}\n"
+            f"🏆 MMR: {rank_val}\n"
+            f"📊 Пик: {peak_val}"
         )
         
         for admin_id in admin_ids:
@@ -674,6 +680,40 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             "📢 <b>Настройки канала:</b>",
             reply_markup=kb_channel_menu,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+
+    # New submenus
+    elif action == "users_menu":
+        await callback.message.edit_text(
+            "👥 <b>Управление пользователями:</b>",
+            reply_markup=kb_users_menu,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "messages_menu":
+        await callback.message.edit_text(
+            "📢 <b>Управление сообщениями:</b>",
+            reply_markup=kb_messages_menu,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "settings_menu":
+        await callback.message.edit_text(
+            "⚙️ <b>Настройки:</b>",
+            reply_markup=kb_settings_menu,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+    
+    elif action == "back_to_main":
+        count = await count_users()
+        await callback.message.edit_text(
+            f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
+            reply_markup=kb_admin_panel,
             parse_mode="HTML"
         )
         await callback.answer()

@@ -104,7 +104,11 @@ async def main():
 
 
 def register_handlers(dp: Dispatcher):
-    from keyboards import kb_admin_panel
+    from keyboards import (
+        kb_admin_panel, kb_users_menu, kb_messages_menu, kb_settings_menu,
+        kb_tournament_menu, kb_welcome_menu, kb_post_reg_menu, kb_notifications_menu,
+        kb_channel_menu, kb_admin_menu,
+    )
     
     # Basic commands
     dp.message.register(start_handler, Command("start"))
@@ -145,6 +149,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(tournament_list, F.data == "tour:list")
     dp.callback_query.register(tournament_create_callback, F.data == "tour:create")
     dp.callback_query.register(tournament_notifications_callback, F.data == "tour:notifications")
+    
     dp.message.register(tournament_create_name, Admin.waiting_tournament_name)
     dp.message.register(tournament_create_description, Admin.waiting_tournament_description)
     dp.message.register(tournament_create_date, Admin.waiting_tournament_date)

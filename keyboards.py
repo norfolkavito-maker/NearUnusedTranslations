@@ -1,10 +1,11 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from config import CHANNEL_LINK
 
 kb_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
-        [KeyboardButton(text="🗑 Удалить мои данные"), KeyboardButton(text="💬 Обратиться к админам")],
-        [KeyboardButton(text="🎮 Discord")]
+        [KeyboardButton(text="🎮 Discord"), KeyboardButton(text="💬 ТГ чат")],
+        [KeyboardButton(text="💬 Обратиться к админам")]
     ],
     resize_keyboard=True
 )
@@ -12,8 +13,8 @@ kb_main = ReplyKeyboardMarkup(
 kb_admin_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
-        [KeyboardButton(text="🗑 Удалить мои данные"), KeyboardButton(text="⚙️ Админ-панель")],
-        [KeyboardButton(text="💬 Обратиться к админам"), KeyboardButton(text="🎮 Discord")]
+        [KeyboardButton(text="⚙️ Админ-панель"), KeyboardButton(text="💬 Обратиться к админам")],
+        [KeyboardButton(text="🎮 Discord"), KeyboardButton(text="💬 ТГ чат")]
     ],
     resize_keyboard=True
 )
@@ -24,12 +25,13 @@ kb_delete_confirm = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✏️ Epic ID", callback_data="mydata:edit_epic")],
-    [InlineKeyboardButton(text="✏️ Discord", callback_data="mydata:edit_discord")],
-    [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank")],
-    [InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],
-    [InlineKeyboardButton(text="✏️ Tracker", callback_data="mydata:edit_tracker")],
-    [InlineKeyboardButton(text="🗑 Удалить данные", callback_data="delete_self:yes")],
+    [InlineKeyboardButton(text="✏️ Epic ID", callback_data="mydata:edit_epic"),
+     InlineKeyboardButton(text="✏️ Discord", callback_data="mydata:edit_discord")],
+    [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank"),
+     InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],
+    [InlineKeyboardButton(text="✏️ Tracker", callback_data="mydata:edit_tracker"),
+     InlineKeyboardButton(text="🗑 Удалить", callback_data="delete_self:yes")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="mydata:back")],
 ])
 
 kb_my_data_back = InlineKeyboardMarkup(inline_keyboard=[
@@ -103,27 +105,41 @@ def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarku
     buttons.append([InlineKeyboardButton(text="✅ Я подписался — проверить", callback_data="sub_check")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# ── Админ-панель (новая структура) ──────────────────────────────────────────
 kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
-    [
-        InlineKeyboardButton(text="📋 Участники", callback_data="adm:list"),
-        InlineKeyboardButton(text="🎮 Игроки", callback_data="adm:players"),
-    ],
-    [
-        InlineKeyboardButton(text="👥 Админы", callback_data="adm:admins"),
-        InlineKeyboardButton(text="📢 Канал", callback_data="adm:channel"),
-    ],
-    [
-        InlineKeyboardButton(text="🏆 Турниры", callback_data="adm:tournaments"),
-        InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications"),
-    ],
-    [
-        InlineKeyboardButton(text="📝 Приветствие", callback_data="adm:welcome"),
-        InlineKeyboardButton(text="📝 После рег.", callback_data="adm:post_reg_msg"),
-    ],
-    [
-        InlineKeyboardButton(text="⚙️ Настройки рег.", callback_data="adm:reg_settings"),
-        InlineKeyboardButton(text="🗑 Удалить", callback_data="adm:kick"),
-    ],
+    [InlineKeyboardButton(text="👥 Пользователи", callback_data="adm:users_menu"),
+     InlineKeyboardButton(text="🏆 Турниры", callback_data="adm:tournaments")],
+    [InlineKeyboardButton(text="📢 Сообщения", callback_data="adm:messages_menu"),
+     InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications")],
+    [InlineKeyboardButton(text="⚙️ Настройки", callback_data="adm:settings_menu"),
+     InlineKeyboardButton(text="👥 Админы", callback_data="adm:admins")],
+    [InlineKeyboardButton(text="📊 Статистика", callback_data="adm:stats"),
+     InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back_to_main")],
+])
+
+# ── Подменю: Пользователи ───────────────────────────────────────────────────
+kb_users_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📋 Список участников", callback_data="adm:list"),
+     InlineKeyboardButton(text="🎮 Игроки (подробно)", callback_data="adm:players")],
+    [InlineKeyboardButton(text="🗑 Удалить игрока", callback_data="adm:kick"),
+     InlineKeyboardButton(text="💥 Удалить всех", callback_data="adm:deleteall")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
+])
+
+# ── Подменю: Сообщения ──────────────────────────────────────────────────────
+kb_messages_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✏️ Приветствие", callback_data="adm:welcome"),
+     InlineKeyboardButton(text="✏️ После рег.", callback_data="adm:post_reg_msg")],
+    [InlineKeyboardButton(text="👀 Просмотр", callback_data="adm:notifications"),
+     InlineKeyboardButton(text="📢 Рассылка", callback_data="adm:notifications")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
+])
+
+# ── Подменю: Настройки ──────────────────────────────────────────────────────
+kb_settings_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="⚙️ Настройки рег.", callback_data="adm:reg_settings"),
+     InlineKeyboardButton(text="📢 Канал", callback_data="adm:channel")],
+    [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
 kb_admin_menu = InlineKeyboardMarkup(inline_keyboard=[
