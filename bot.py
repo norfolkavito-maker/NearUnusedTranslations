@@ -27,6 +27,7 @@ from handlers import (
     post_reg_message_edit,
     post_reg_edit_callback, post_reg_view_callback,
     my_data_edit_callback, my_data_back_callback, my_data_edit_handler,
+    unknown_message_fallback,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -205,6 +206,9 @@ def register_handlers(dp: Dispatcher):
     # post-registration message management
     dp.callback_query.register(post_reg_edit_callback, F.data == "postreg:edit")
     dp.callback_query.register(post_reg_view_callback, F.data == "postreg:view")
+    
+    # Fallback handler for unknown text messages (old buttons) — must be LAST
+    dp.message.register(unknown_message_fallback)
 
 
 # Admin management callbacks
