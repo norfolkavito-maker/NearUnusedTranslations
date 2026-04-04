@@ -2367,6 +2367,7 @@ async def superuser_restore_handler(msg: types.Message, state: FSMContext):
 # ── Fallback handlers для старых/неизвестных callback'ов и сообщений ──────────
 async def unknown_callback_fallback(callback: CallbackQuery):
     """Fallback для неизвестных callback'ов — показывает главное меню"""
+    print(f"[UNKNOWN_CALLBACK] Intercepted: user={callback.from_user.id}, data={callback.data}")
     try:
         await callback.answer("⚠️ Интерфейс обновился. Используйте главное меню.", show_alert=False)
         kb = await _main_kb(callback.from_user.id)
@@ -2384,8 +2385,10 @@ async def unknown_message_fallback(msg: types.Message, state: FSMContext):
     """Fallback для неизвестных текстовых сообщений — показывает главное меню"""
     # Проверяем не в состоянии ли пользователь
     current_state = await state.get_state()
+    print(f"[UNKNOWN_MSG_FALLBACK] user={msg.from_user.id}, text={msg.text}, state={current_state}")
     if current_state is not None:
         # Если пользователь в состоянии — не перехватываем
+        print(f"[UNKNOWN_MSG_FALLBACK] Skipping - user in state {current_state}")
         return
     
     # Игнорируем команды начинающиеся с /

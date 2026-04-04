@@ -276,7 +276,7 @@ def register_handlers(dp: Dispatcher):
     # my data editing
     dp.callback_query.register(my_data_edit_callback, F.data.startswith("mydata:edit_"))
     dp.callback_query.register(my_data_back_callback, F.data == "mydata:back")
-    dp.message.register(my_data_edit_handler, MyData.waiting_epic, MyData.waiting_discord, MyData.waiting_rank, MyData.waiting_peak_rank, MyData.waiting_tracker)
+    dp.message.register(my_data_edit_handler, StateFilter(MyData.waiting_epic, MyData.waiting_discord, MyData.waiting_rank, MyData.waiting_peak_rank, MyData.waiting_tracker))
     
     # post-registration message management
     dp.callback_query.register(post_reg_edit_callback, F.data == "postreg:edit")
