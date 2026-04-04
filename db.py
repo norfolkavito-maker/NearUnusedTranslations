@@ -314,9 +314,28 @@ async def is_admin_or_moderator(tg_id):
 
 
 # ── Channel Settings ─────────────────────────────────────────────────────
-async def update_channel_settings(channel_link="", discord_link="", require_subscription=False):
+async def update_channel_settings(channel_link=None, discord_link=None, require_subscription=None):
+    """Обновляет только указанные поля, сохраняя остальные"""
     try:
-        await _safe_query("INSERT OR REPLACE INTO channel_settings (id, channel_link, discord_link, require_subscription) VALUES (1, ?, ?, ?)", (channel_link, discord_link, require_subscription))
+        # Получаем текущие настройки
+        current = await get_channel_settings()
+        if not current:
+            # Если настроек нет — создаём новые
+            await _safe_query(
+                "INSERT INTO channel_settings (id, channel_link, discord_link, require_subscription) VALUES (1, ?, ?, ?)",
+                (channel_link or "", discord_link or "", require_subscription or False)
+            )
+            return
+        
+        # Обновляем только указанные поля
+        new_channel = channel_link if channel_link is not None else current.get("channel_link", "")
+        new_discord = discord_link if discord_link is not None else current.get("discord_link", "")
+        new_require = require_subscription if require_subscription is not None else current.get("require_subscription", False)
+        
+        await _safe_query(
+            "UPDATE channel_settings SET channel_link=?, discord_link=?, require_subscription=? WHERE id=1",
+            (new_channel, new_discord, new_require)
+        )
     except Exception as e:
         print(f"❌ Ошибка обновления настроек канала: {e}")
 
