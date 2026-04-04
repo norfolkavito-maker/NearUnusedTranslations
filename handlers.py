@@ -1418,8 +1418,8 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
 async def discord_handler(msg: types.Message):
     settings = await get_channel_settings()
     if settings:
-        discord_link = settings.get("discord_link", "https://discord.gg/your-server")
-        channel_link = settings.get("channel_link", CHANNEL_LINK)
+        discord_link = settings.get("discord_link") or "https://discord.gg/your-server"
+        channel_link = settings.get("channel_link") or CHANNEL_LINK
     else:
         discord_link = "https://discord.gg/your-server"
         channel_link = CHANNEL_LINK
