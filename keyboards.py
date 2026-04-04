@@ -4,8 +4,8 @@ from config import CHANNEL_LINK
 kb_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
-        [KeyboardButton(text="🎮 Discord"), KeyboardButton(text="💬 ТГ чат")],
-        [KeyboardButton(text="💬 Обратиться к админам")]
+        [KeyboardButton(text="💬 Discord"), KeyboardButton(text="💬 ТГ чат")],
+        [KeyboardButton(text="📨 Обратиться к админам")]
     ],
     resize_keyboard=True
 )
@@ -13,8 +13,8 @@ kb_main = ReplyKeyboardMarkup(
 kb_admin_main = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🎮 Регистрация"), KeyboardButton(text="📋 Мои данные")],
-        [KeyboardButton(text="⚙️ Админ-панель"), KeyboardButton(text="💬 Обратиться к админам")],
-        [KeyboardButton(text="🎮 Discord"), KeyboardButton(text="💬 ТГ чат")]
+        [KeyboardButton(text="⚙️ Админ-панель"), KeyboardButton(text="📨 Обратиться к админам")],
+        [KeyboardButton(text="💬 Discord"), KeyboardButton(text="💬 ТГ чат")]
     ],
     resize_keyboard=True
 )
@@ -30,7 +30,7 @@ kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank"),
      InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],
     [InlineKeyboardButton(text="✏️ Tracker", callback_data="mydata:edit_tracker"),
-     InlineKeyboardButton(text="🗑 Удалить", callback_data="delete_self:yes")],
+     InlineKeyboardButton(text="🗑 Удалить данные", callback_data="delete_self:yes")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="mydata:back")],
 ])
 
@@ -109,10 +109,10 @@ def kb_sub_check(channel_link: str, group_link: str = "") -> InlineKeyboardMarku
 kb_admin_panel = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="👥 Пользователи", callback_data="adm:users_menu"),
      InlineKeyboardButton(text="🏆 Турниры", callback_data="adm:tournaments")],
-    [InlineKeyboardButton(text="📢 Сообщения", callback_data="adm:messages_menu"),
+    [InlineKeyboardButton(text="✉️ Сообщения", callback_data="adm:messages_menu"),
      InlineKeyboardButton(text="📢 Рассылки", callback_data="adm:notifications")],
     [InlineKeyboardButton(text="⚙️ Настройки", callback_data="adm:settings_menu"),
-     InlineKeyboardButton(text="👥 Админы", callback_data="adm:admins")],
+     InlineKeyboardButton(text="👑 Админы", callback_data="adm:admins")],
     [InlineKeyboardButton(text="📊 Статистика", callback_data="adm:stats"),
      InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back_to_main")],
 ])
@@ -130,15 +130,15 @@ kb_users_menu = InlineKeyboardMarkup(inline_keyboard=[
 kb_messages_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="✏️ Приветствие", callback_data="adm:welcome"),
      InlineKeyboardButton(text="✏️ После рег.", callback_data="adm:post_reg_msg")],
-    [InlineKeyboardButton(text="👀 Просмотр", callback_data="adm:notifications"),
-     InlineKeyboardButton(text="📢 Рассылка", callback_data="adm:notifications")],
+    [InlineKeyboardButton(text="👀 Просмотр", callback_data="postreg:view"),
+     InlineKeyboardButton(text="📤 Рассылка", callback_data="notif:broadcast")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
 # ── Подменю: Настройки ──────────────────────────────────────────────────────
 kb_settings_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="⚙️ Настройки рег.", callback_data="adm:reg_settings"),
-     InlineKeyboardButton(text="📢 Канал", callback_data="adm:channel")],
+     InlineKeyboardButton(text="📡 Канал", callback_data="adm:channel")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])
 
@@ -151,7 +151,7 @@ kb_admin_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 kb_channel_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="✏️ Изменить ссылку канала", callback_data="channel:edit")],
-    [InlineKeyboardButton(text="🎮 Изменить Discord ссылку", callback_data="channel:discord")],
+    [InlineKeyboardButton(text="💬 Изменить Discord ссылку", callback_data="channel:discord")],
     [InlineKeyboardButton(text="🔔 Требовать подписку", callback_data="channel:toggle")],
     [InlineKeyboardButton(text="👀 Посмотреть настройки", callback_data="channel:view")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
@@ -205,7 +205,7 @@ kb_reg_settings = make_kb_reg_settings()
 
 kb_notifications_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="➕ Создать рассылку", callback_data="notif:create")],
-    [InlineKeyboardButton(text="📢 Рассылка всем пользователям", callback_data="notif:broadcast")],
+    [InlineKeyboardButton(text="📤 Рассылка всем пользователям", callback_data="notif:broadcast")],
     [InlineKeyboardButton(text="📋 Отложенные рассылки", callback_data="notif:list")],
     [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
 ])

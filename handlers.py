@@ -27,6 +27,7 @@ from keyboards import (
     kb_admin_menu, kb_tournament_menu, kb_welcome_menu, kb_notifications_menu, kb_channel_menu,
     kb_superuser_main, kb_superuser_back, kb_clear_logs_confirm,
     kb_post_reg_menu, kb_reg_settings, kb_my_data,
+    kb_users_menu, kb_messages_menu, kb_settings_menu,
     TIERS, get_rank_label, get_auto_mmr, get_mmr_range,
 )
 from config import CHANNEL_ID, CHANNEL_LINK, GROUP_LINK, ADMIN_IDS
