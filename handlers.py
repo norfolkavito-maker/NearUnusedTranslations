@@ -1910,8 +1910,11 @@ async def contact_admins_handler(msg: types.Message, state: FSMContext):
 
 
 async def contact_admins_message_handler(msg: types.Message, bot: Bot):
-    """Обработка сообщения для админов"""
+    """Обработка сообщения для админов — сохраняет в БД"""
     try:
+        # Сохраняем сообщение в БД
+        await add_user_message(msg.from_user.id, msg.from_user.username, msg.text)
+        
         admins = await get_all_admins()
         admin_ids = list(ADMIN_IDS) + [admin['tg_id'] for admin in admins]
         
@@ -1938,7 +1941,8 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
                 print(f"Failed to notify admin {admin_id}: {e}")
         
         await msg.answer(
-            f"✅ Ваше сообщение отправлено {success_count} администраторам!",
+            f"✅ Ваше сообщение отправлено {success_count} администраторам!\n"
+            f"💬 Вы также можете получить персональный ответ через бота.",
             reply_markup=await _main_kb(msg.from_user.id)
         )
     except Exception as e:
@@ -2401,6 +2405,249 @@ async def superuser_restore_handler(msg: types.Message, state: FSMContext):
     except Exception as e:
         await msg.answer(f"❌ Ошибка: {e}")
         await log_bot("ERROR", f"Ошибка восстановления: {e}")
+
+
+# ── SuperUser: Duplicate Detection ───────────────────────────────────────────
+async def superuser_find_duplicates_callback(callback: CallbackQuery):
+    """Поиск дубликатов по username"""
+    duplicates = await find_duplicate_usernames()
+    
+    if not duplicates:
+        await callback.message.edit_text(
+            "🔍 <b>Дубликаты не найдены!</b>\n\nВсе пользователи имеют уникальные ники.",
+            reply_markup=kb_superuser_back,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        return
+    
+    text = f"🔍 <b>Найдены дубликаты ({len(duplicates)} групп):</b>\n\n"
+    for i, dup in enumerate(duplicates[:15], 1):
+        ids = dup['ids'].split(',')
+        usernames = dup['usernames'].split(',')
+        text += f"{i}. <b>{dup['clean_username']}</b> — {dup['cnt']} записей\n"
+        for j, (uid, uname) in enumerate(zip(ids, usernames), 1):
+            text += f"   {j}. <code>{uid}</code> ({uname})\n"
+        if len(ids) > 1:
+            # Кнопки для удаления дублей (все кроме первого)
+            for uid in ids[1:]:
+                text += f"   🔘 [Удалить {uid}](su:delete_dup:{uid})\n"
+        text += "\n"
+    
+    text += "⚠️ <i>Для удаления дубля используйте кнопку рядом с ID</i>"
+    
+    # Создаём клавиатуру с кнопками удаления
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    buttons = []
+    for dup in duplicates[:15]:
+        ids = dup['ids'].split(',')
+        for uid in ids[1:]:
+            buttons.append([InlineKeyboardButton(
+                text=f"🗑 Удалить {uid}",
+                callback_data=f"su:delete_dup:{uid}"
+            )])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")])
+    
+    dup_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    try:
+        await callback.message.edit_text(text, reply_markup=dup_kb, parse_mode="HTML")
+    except Exception as e:
+        print(f"Error showing duplicates: {e}")
+        await callback.message.answer(text, reply_markup=dup_kb, parse_mode="HTML")
+    await callback.answer()
+
+
+async def superuser_delete_dup_callback(callback: CallbackQuery, bot: Bot):
+    """Удаление дублирующей записи и уведомление пользователя"""
+    tg_id = int(callback.data.split(":")[2])
+    
+    # Получаем данные пользователя перед удалением
+    user = await get_user(tg_id)
+    if not user:
+        await callback.answer("Пользователь не найден!")
+        return
+    
+    # Удаляем пользователя
+    deleted_user = await delete_user_by_tg_id(tg_id)
+    if deleted_user:
+        # Отправляем уведомление пользователю (если ещё есть такая запись)
+        try:
+            # Проверяем осталась ли ещё одна запись с таким же username
+            all_users = await get_all_users()
+            username_clean = user.get('username', '').lower().replace('@', '')
+            remaining = [u for u in all_users if u.get('username', '').lower().replace('@', '') == username_clean]
+            
+            if remaining:
+                # Отправляем уведомление оставшемуся пользователю
+                remaining_user = remaining[0]
+                await bot.send_message(
+                    chat_id=remaining_user['tg_id'],
+                    text=(
+                        f"📨 <b>Уведомление от администратора:</b>\n\n"
+                        f"У вас была дублирующая запись в базе данных. Одну из записей (ID: <code>{tg_id}</code>) удалили.\n\n"
+                        f"📋 Проверьте актуальные данные через <b>📋 Мои данные</b>."
+                    ),
+                    parse_mode="HTML"
+                )
+                print(f"📨 Notified user {remaining_user['tg_id']} about duplicate removal")
+        except Exception as e:
+            print(f"Error notifying user about duplicate removal: {e}")
+        
+        await log_activity(callback.from_user.id, callback.from_user.username, "DELETE_DUPLICATE", 
+                          f"Удалён дубль: {tg_id} ({user.get('username', '')})")
+        
+        await callback.answer(f"✅ Дубль {tg_id} удалён!")
+        
+        # Обновляем список дубликатов
+        await superuser_find_duplicates_callback(callback)
+    else:
+        await callback.answer("❌ Ошибка при удалении!")
+
+
+# ── Admin: User Messages ─────────────────────────────────────────────────────
+async def admin_user_messages_callback(callback: CallbackQuery):
+    """Просмотр сообщений от пользователей"""
+    unread = await get_unread_messages()
+    unread_count = len(unread)
+    
+    if not unread:
+        await callback.message.edit_text(
+            "💬 <b>Сообщения от пользователей</b>\n\n✅ Нет непрочитанных сообщений.",
+            reply_markup=kb_superuser_back,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        return
+    
+    text = f"💬 <b>Новые сообщения ({unread_count}):</b>\n\n"
+    for msg in unread[:20]:
+        username = msg.get('from_username', 'Нет username')
+        if username and not username.startswith('@'):
+            username = f"@{username}"
+        created = msg.get('created_at', '')[:16] if msg.get('created_at') else ''
+        preview = msg['message'][:50] + ('...' if len(msg['message']) > 50 else '')
+        text += f"📩 <b>#{msg['id']}</b> от {username} (<code>{msg['from_tg_id']}</code>)\n"
+        text += f"   💭 {preview}\n"
+        text += f"   ⏰ {created}\n\n"
+    
+    # Клавиатура с действиями
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    buttons = []
+    for msg in unread[:10]:
+        buttons.append([
+            InlineKeyboardButton(text=f"👁 #{msg['id']}", callback_data=f"msg:view:{msg['id']}"),
+            InlineKeyboardButton(text=f"💬 Ответить #{msg['id']}", callback_data=f"msg:reply:{msg['id']}"),
+        ])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")])
+    
+    msg_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    
+    try:
+        await callback.message.edit_text(text, reply_markup=msg_kb, parse_mode="HTML")
+    except:
+        await callback.message.answer(text, reply_markup=msg_kb, parse_mode="HTML")
+    await callback.answer()
+
+
+async def admin_view_message_callback(callback: CallbackQuery, state: FSMContext):
+    """Просмотр конкретного сообщения"""
+    msg_id = int(callback.data.split(":")[2])
+    await mark_message_read(msg_id)
+    
+    # Получаем сообщение
+    messages = await get_all_messages(1)
+    msg = next((m for m in messages if m['id'] == msg_id), None)
+    
+    if not msg:
+        await callback.answer("Сообщение не найдено!")
+        return
+    
+    username = msg.get('from_username', 'Нет username')
+    if username and not username.startswith('@'):
+        username = f"@{username}"
+    
+    text = (
+        f"📩 <b>Сообщение #{msg['id']}</b>\n\n"
+        f"👤 От: {username} (<code>{msg['from_tg_id']}</code>)\n"
+        f"💭 Текст: {msg['message']}\n"
+        f"⏰ Дата: {msg['created_at']}\n"
+    )
+    
+    if msg.get('admin_reply'):
+        text += f"\n✅ Ответ админа: {msg['admin_reply']}"
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    reply_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💬 Ответить", callback_data=f"msg:reply:{msg_id}")],
+        [InlineKeyboardButton(text="📋 К сообщениям", callback_data="su:user_messages")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="su:back")],
+    ])
+    
+    try:
+        await callback.message.edit_text(text, reply_markup=reply_kb, parse_mode="HTML")
+    except:
+        await callback.message.answer(text, reply_markup=reply_kb, parse_mode="HTML")
+    await callback.answer()
+
+
+async def admin_start_reply_callback(callback: CallbackQuery, state: FSMContext):
+    """Начало ответа пользователю"""
+    msg_id = int(callback.data.split(":")[2])
+    await state.update_data(reply_msg_id=msg_id)
+    await state.set_state(Admin.waiting_user_reply)
+    
+    await callback.message.edit_text(
+        "💬 <b>Напишите ответ пользователю:</b>\n\n"
+        "Ваше сообщение будет отправлено от имени бота.",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+async def admin_send_reply_handler(msg: types.Message, state: FSMContext, bot: Bot):
+    """Отправка ответа пользователю"""
+    data = await state.get_data()
+    reply_msg_id = data.get('reply_msg_id')
+    
+    if not reply_msg_id:
+        await msg.answer("❌ Ошибка: не найден ID сообщения")
+        await state.clear()
+        return
+    
+    # Получаем исходное сообщение
+    messages = await get_all_messages(1)
+    original_msg = next((m for m in messages if m['id'] == reply_msg_id), None)
+    
+    if not original_msg:
+        await msg.answer("❌ Сообщение не найдено!")
+        await state.clear()
+        return
+    
+    # Отправляем ответ пользователю
+    reply_text = msg.text.strip()
+    try:
+        await bot.send_message(
+            chat_id=original_msg['from_tg_id'],
+            text=f"💬 <b>Ответ от администратора:</b>\n\n{reply_text}",
+            parse_mode="HTML"
+        )
+        
+        # Отмечаем как отвеченное
+        await mark_message_replied(reply_msg_id, reply_text)
+        
+        await log_activity(msg.from_user.id, msg.from_user.username, "REPLY_TO_USER", 
+                          f"Ответ на сообщение #{reply_msg_id}: {reply_text[:50]}")
+        
+        await msg.answer(
+            f"✅ Ответ отправлен пользователю {original_msg.get('from_username', 'N/A')} (<code>{original_msg['from_tg_id']}</code>)",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Error sending reply: {e}")
+        await msg.answer(f"❌ Ошибка при отправке: {e}")
+    
+    await state.clear()
 
 
 # ── Fallback handlers для старых/неизвестных callback'ов и сообщений ──────────

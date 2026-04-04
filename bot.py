@@ -45,6 +45,9 @@ from handlers import (
     admin_channel_view_handler,
     admin_welcome_edit_handler, admin_welcome_view_handler,
     admin_post_reg_edit_handler, admin_post_reg_view_handler,
+    # Duplicate detection & user messages
+    superuser_find_duplicates_callback, superuser_delete_dup_callback,
+    admin_user_messages_callback, admin_view_message_callback, admin_start_reply_callback, admin_send_reply_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -277,6 +280,16 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(my_data_edit_callback, F.data.startswith("mydata:edit_"))
     dp.callback_query.register(my_data_back_callback, F.data == "mydata:back")
     dp.message.register(my_data_edit_handler, StateFilter(MyData.waiting_epic, MyData.waiting_discord, MyData.waiting_rank, MyData.waiting_peak_rank, MyData.waiting_tracker))
+    
+    # superuser duplicates
+    dp.callback_query.register(superuser_find_duplicates_callback, F.data == "su:find_duplicates")
+    dp.callback_query.register(superuser_delete_dup_callback, F.data.startswith("su:delete_dup:"))
+    
+    # admin user messages
+    dp.callback_query.register(admin_user_messages_callback, F.data == "su:user_messages")
+    dp.callback_query.register(admin_view_message_callback, F.data.startswith("msg:view:"))
+    dp.callback_query.register(admin_start_reply_callback, F.data.startswith("msg:reply:"))
+    dp.message.register(admin_send_reply_handler, Admin.waiting_user_reply)
     
     # post-registration message management
     dp.callback_query.register(post_reg_edit_callback, F.data == "postreg:edit")
