@@ -536,6 +536,7 @@ async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
     """Обработка кнопок редактирования профиля"""
     from states import MyData
     _, field = callback.data.split(":")
+    print(f"[MY_DATA_EDIT] Callback received: field={field}")
     field_map = {
         "edit_epic": "epic",
         "edit_discord": "discord",
@@ -544,6 +545,7 @@ async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
         "edit_tracker": "tracker",
     }
     field_db = field_map.get(field)
+    print(f"[MY_DATA_EDIT] Mapped field_db={field_db}")
     if not field_db:
         await callback.answer("Неизвестное поле")
         return
@@ -569,8 +571,13 @@ async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
         "peak_rank": MyData.waiting_peak_rank,
         "tracker": MyData.waiting_tracker,
     }
-    await state.set_state(state_map.get(field_db))
+    target_state = state_map.get(field_db)
+    print(f"[MY_DATA_EDIT] Setting state to: {target_state}, edit_field={field_db}")
+    await state.set_state(target_state)
     await state.update_data(edit_field=field_db)
+    # Verify state was set
+    current = await state.get_state()
+    print(f"[MY_DATA_EDIT] State after set: {current}")
     await callback.answer()
 
 
@@ -592,15 +599,23 @@ FIELD_MAP_EDIT = {
 
 async def my_data_edit_handler(msg: types.Message, state: FSMContext):
     """Обработка ввода нового значения"""
+    print(f"[MY_DATA_EDIT_HANDLER] Message received from user {msg.from_user.id}: {msg.text}")
     data = await state.get_data()
     field = data.get("edit_field")
+    current_state = await state.get_state()
+    print(f"[MY_DATA_EDIT_HANDLER] State: {current_state}, edit_field: {field}, data: {data}")
+    
     if not field or field not in FIELD_MAP_EDIT:
+        print(f"[MY_DATA_EDIT_HANDLER] ERROR: Invalid field={field}")
         await msg.answer("⚠️ Ошибка. Нажми /start и попробуй снова.")
         await state.clear()
         return
     
     value = msg.text.strip()
-    success = await update_user_field(msg.from_user.id, FIELD_MAP_EDIT[field], value)
+    db_field = FIELD_MAP_EDIT[field]
+    print(f"[MY_DATA_EDIT_HANDLER] Updating field: {db_field} with value: {value}")
+    success = await update_user_field(msg.from_user.id, db_field, value)
+    print(f"[MY_DATA_EDIT_HANDLER] Update result: {success}")
     
     if success:
         # Map field name to label
