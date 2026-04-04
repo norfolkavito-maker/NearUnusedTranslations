@@ -271,7 +271,7 @@ kb_superuser_main = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🔑 Сменить пароль", callback_data="su:change_password")],
     [InlineKeyboardButton(text="🧹 Очистить логи", callback_data="su:clear_logs")],
     [InlineKeyboardButton(text="📈 Общая статистика", callback_data="su:stats")],
-    [InlineKeyboardButton(text="📥 Инжект 13 игроков", callback_data="su:inject_players")],
+    [InlineKeyboardButton(text="🐕 Добавить @ к никам", callback_data="su:add_at_to_usernames")],
     [InlineKeyboardButton(text="🚪 Выйти", callback_data="su:exit")],
 ])
 
