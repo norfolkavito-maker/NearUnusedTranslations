@@ -125,7 +125,7 @@ kb_delete_confirm = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✏️ Epic ID", callback_data="mydata:edit_epic"),
+    [InlineKeyboardButton(text="✏️ Epic ID (ник в RL)", callback_data="mydata:edit_epic"),
      InlineKeyboardButton(text="✏️ Discord", callback_data="mydata:edit_discord")],
     [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank"),
      InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],

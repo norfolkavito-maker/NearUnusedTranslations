@@ -504,7 +504,7 @@ async def _save_and_finish_msg(msg: types.Message, state: FSMContext, peak_rank:
 
 # ── /me ──────────────────────────────────────────────────────────────────────
 EDIT_FIELDS = {
-    "epic": ("Epic ID", "✏️ Введи новый Epic ID:"),
+    "epic": ("Epic ID (ник в RL)", "✏️ Введи новый Epic ID (ник в RL):"),
     "discord": ("Discord", "✏️ Введи новый Discord (например User#1234):"),
     "rank": ("Актуальный MMR", "✏️ Введи новый актуальный MMR:"),
     "peak": ("Пиковый MMR", "✏️ Введи новый пиковый MMR:"),
@@ -548,12 +548,19 @@ async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Неизвестное поле")
         return
     
-    label, prompt = EDIT_FIELDS.get(field_db.split("_")[0], (field_db, "Введите новое значение:"))
+    label, prompt = EDIT_FIELDS.get(field_db, (field_db, "Введите новое значение:"))
     
-    await callback.message.edit_text(
-        f"✏️ <b>Редактирование: {label}</b>\n\n{prompt}",
-        parse_mode="HTML"
-    )
+    try:
+        await callback.message.edit_text(
+            f"✏️ <b>Редактирование: {label}</b>\n\n{prompt}",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"my_data_edit_callback edit_text error: {e}")
+        await callback.message.answer(
+            f"✏️ <b>Редактирование: {label}</b>\n\n{prompt}",
+            parse_mode="HTML"
+        )
     
     state_map = {
         "epic": MyData.waiting_epic,
@@ -597,7 +604,7 @@ async def my_data_edit_handler(msg: types.Message, state: FSMContext):
     
     if success:
         # Map field name to label
-        label_map = {"epic": "Epic ID", "discord": "Discord", "rank": "Актуальный MMR", "peak_rank": "Пиковый MMR", "tracker": "RL Tracker"}
+        label_map = {"epic": "Epic ID (ник в RL)", "discord": "Discord", "rank": "Актуальный MMR", "peak_rank": "Пиковый MMR", "tracker": "RL Tracker"}
         label = label_map.get(field, field)
         await msg.answer(
             f"✅ <b>{label}</b> обновлён!\n\nНовое значение: <b>{value}</b>",
@@ -1249,7 +1256,14 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         # Проверяем является ли пользователя админом
         if await is_admin(callback.from_user.id):
             count = await count_users()
-            await callback.message.edit_text(
+            try:
+                await callback.message.edit_text(
+                    f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+            await callback.message.answer(
                 f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
                 reply_markup=kb_admin_panel,
                 parse_mode="HTML"
