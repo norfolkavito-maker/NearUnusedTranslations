@@ -722,6 +722,90 @@ async def admin_deleteall_handler(msg: types.Message):
         parse_mode="HTML"
     )
 
+async def admin_export_csv_handler(msg: types.Message):
+    """Экспорт участников в CSV файл"""
+    if not await is_admin(msg.from_user.id):
+        return
+    users = await get_all_users()
+    if not users:
+        await msg.answer("👥 Зарегистрированных игроков пока нет", reply_markup=kb_users_menu)
+        return
+    
+    import csv
+    import io
+    import os
+    
+    os.makedirs("exports", exist_ok=True)
+    filename = f"exports/users_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    with open(filename, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["ID", "Username", "Epic", "Discord", "MMR", "Peak MMR", "Tracker", "Дата регистрации"])
+        for u in users:
+            writer.writerow([
+                u["tg_id"],
+                u.get("username", ""),
+                u.get("epic", ""),
+                u.get("discord", ""),
+                u.get("rank", ""),
+                u.get("peak_rank", ""),
+                u.get("tracker", ""),
+                u.get("created_at", "")
+            ])
+    
+    from aiogram.types import FSInputFile
+    await msg.answer_document(
+        document=FSInputFile(filename),
+        caption=f"📊 <b>Экспорт завершён!</b>\n👥 Участников: {len(users)}\n📁 Файл: {filename}",
+        parse_mode="HTML"
+    )
+    await log_activity(msg.from_user.id, msg.from_user.username, "EXPORT_CSV", f"Экспортировано {len(users)} пользователей")
+
+async def admin_search_handler(msg: types.Message, state: FSMContext):
+    """Поиск игрока по нику/ID/Epic"""
+    if not await is_admin(msg.from_user.id):
+        return
+    await msg.answer("🔍 <b>Поиск игрока</b>\n\nВведите ник, ID или Epic имя для поиска:", parse_mode="HTML")
+    await state.set_state(Admin.waiting_search_query)
+
+async def admin_search_query_handler(msg: types.Message, state: FSMContext):
+    """Обработка запроса поиска"""
+    if not await is_admin(msg.from_user.id):
+        return
+    query = msg.text.strip().lower()
+    users = await get_all_users()
+    
+    results = []
+    for u in users:
+        username = (u.get("username", "") or "").lower()
+        epic = (u.get("epic", "") or "").lower()
+        discord = (u.get("discord", "") or "").lower()
+        tg_id = str(u.get("tg_id", ""))
+        
+        if query in username or query in epic or query in discord or query in tg_id:
+            results.append(u)
+    
+    if not results:
+        await msg.answer(f"🔍 По запросу '<b>{query}</b>' ничего не найдено", reply_markup=kb_users_menu, parse_mode="HTML")
+        await state.clear()
+        return
+    
+    text = f"🔍 <b>Результаты поиска ({len(results)}):</b>\n\n"
+    for i, u in enumerate(results[:20], 1):  # Limit to 20 results
+        username = u.get('username', '—')
+        if username and not username.startswith('@'):
+            username = f"@{username}"
+        text += f"{i}. {username} (<code>{u['tg_id']}</code>)\n   Epic: {u['epic']} | Discord: {u['discord']}\n   MMR: {u['rank']} | Пик: {u['peak_rank']}\n\n"
+    
+    if len(results) > 20:
+        text += f"... и ещё {len(results) - 20} результатов\n\n"
+    
+    for chunk in [text[i:i+4000] for i in range(0, len(text), 4000)]:
+        await msg.answer(chunk, parse_mode="HTML")
+    
+    await state.clear()
+    await log_activity(msg.from_user.id, msg.from_user.username, "SEARCH_PLAYER", f"Запрос: {query}, Найдено: {len(results)}")
+
 # ── Messages sub-submenus ────────────────────────────────────────────────────
 async def admin_welcome_handler(msg: types.Message, state: FSMContext):
     if not await is_admin(msg.from_user.id):
@@ -788,7 +872,7 @@ async def admin_channel_handler(msg: types.Message):
         )
     else:
         text = "📢 Настройки канала не установлены"
-    await msg.answer(text, reply_markup=kb_settings_menu, parse_mode="HTML")
+    await msg.answer(text, reply_markup=kb_channel_menu, parse_mode="HTML")
 
 # ── Admins sub-submenus ──────────────────────────────────────────────────────
 async def admin_add_handler(msg: types.Message, state: FSMContext):

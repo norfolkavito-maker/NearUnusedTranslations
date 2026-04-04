@@ -35,6 +35,7 @@ kb_admin_panel = ReplyKeyboardMarkup(
 kb_users_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📋 Список участников"), KeyboardButton(text="🎮 Игроки (подробно)")],
+        [KeyboardButton(text="📊 Экспорт CSV"), KeyboardButton(text="🔍 Поиск игрока")],
         [KeyboardButton(text="🗑 Удалить игрока"), KeyboardButton(text="💥 Удалить всех")],
         [KeyboardButton(text="◀️ Назад")]
     ],

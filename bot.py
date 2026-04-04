@@ -33,7 +33,8 @@ from handlers import (
     admin_broadcasts_handler, admin_settings_handler, admin_admins_handler,
     admin_stats_handler, admin_back_handler,
     admin_users_list_handler, admin_players_handler, admin_kick_handler,
-    admin_deleteall_handler,
+    admin_deleteall_handler, admin_export_csv_handler, admin_search_handler,
+    admin_search_query_handler,
     admin_welcome_handler, admin_post_reg_handler, admin_view_welcome_handler,
     admin_broadcast_send_handler,
     admin_reg_settings_handler, admin_channel_handler,
@@ -150,6 +151,9 @@ def register_handlers(dp: Dispatcher):
     # Users sub-submenus
     dp.message.register(admin_users_list_handler, F.text == "📋 Список участников")
     dp.message.register(admin_players_handler, F.text == "🎮 Игроки (подробно)")
+    dp.message.register(admin_export_csv_handler, F.text == "📊 Экспорт CSV")
+    dp.message.register(admin_search_handler, F.text == "🔍 Поиск игрока")
+    dp.message.register(admin_search_query_handler, Admin.waiting_search_query)
     dp.message.register(admin_kick_handler, F.text == "🗑 Удалить игрока")
     dp.message.register(admin_deleteall_handler, F.text == "💥 Удалить всех")
     

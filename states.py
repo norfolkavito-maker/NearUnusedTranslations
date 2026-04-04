@@ -34,6 +34,7 @@ class Admin(StatesGroup):
     waiting_discord_link = State()
     waiting_broadcast_message = State()
     waiting_post_reg_message = State()
+    waiting_search_query = State()
 
 
 class ContactAdmin(StatesGroup):
