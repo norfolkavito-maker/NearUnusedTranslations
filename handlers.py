@@ -780,21 +780,35 @@ async def admin_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
     
     elif action == "back_to_main":
-        count = await count_users()
-        await callback.message.edit_text(
-            f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
-            reply_markup=kb_admin_panel,
-            parse_mode="HTML"
-        )
+        # Проверяем является ли пользователь админом
+        if await is_admin(callback.from_user.id):
+            count = await count_users()
+            await callback.message.edit_text(
+                f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
+                reply_markup=kb_admin_panel,
+                parse_mode="HTML"
+            )
+        else:
+            await callback.message.edit_text(
+                "🔄 <b>Вы вышли из админ-панели</b>",
+                reply_markup=await _main_kb(callback.from_user.id)
+            )
         await callback.answer()
 
     elif action == "back":
-        count = await count_users()
-        await callback.message.edit_text(
-            f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
-            reply_markup=kb_admin_panel,
-            parse_mode="HTML"
-        )
+        # Проверяем является ли пользователя админом
+        if await is_admin(callback.from_user.id):
+            count = await count_users()
+            await callback.message.edit_text(
+                f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
+                reply_markup=kb_admin_panel,
+                parse_mode="HTML"
+            )
+        else:
+            await callback.message.edit_text(
+                "🔄 <b>Вы вышли из админ-панели</b>",
+                reply_markup=await _main_kb(callback.from_user.id)
+            )
         await callback.answer()
 
     elif action == "kick":
@@ -1417,18 +1431,32 @@ async def contact_admins_message_handler(msg: types.Message, bot: Bot):
 # ── Discord / TG Chat Handler ───────────────────────────────────────────────────────
 async def discord_handler(msg: types.Message):
     settings = await get_channel_settings()
+    
+    # Берём ссылки ТОЛЬКО из настроек админки
     if settings:
-        discord_link = settings.get("discord_link") or "https://discord.gg/your-server"
-        channel_link = settings.get("channel_link") or CHANNEL_LINK
+        discord_link = settings.get("discord_link")
+        channel_link = settings.get("channel_link")
     else:
-        discord_link = "https://discord.gg/your-server"
-        channel_link = CHANNEL_LINK
+        discord_link = None
+        channel_link = None
+    
+    # Формируем ответ
+    parts = ["💬 <b>Наши чаты:</b>\n"]
+    
+    if discord_link:
+        parts.append(f"\n🎮 <b>Discord сервер:</b>\n🔗 {discord_link}")
+    else:
+        parts.append(f"\n🎮 <b>Discord сервер:</b>\n⚠️ Ссылка не указана")
+    
+    if channel_link:
+        parts.append(f"\n\n📱 <b>Telegram чат:</b>\n🔗 {channel_link}")
+    else:
+        parts.append(f"\n\n📱 <b>Telegram чат:</b>\n⚠️ Ссылка не указана")
+    
+    parts.append("\n\nПрисоединяйтесь к сообществу!")
     
     await msg.answer(
-        f"💬 <b>Наши чаты:</b>\n\n"
-        f"🎮 <b>Discord сервер:</b>\n🔗 {discord_link}\n\n"
-        f"📱 <b>Telegram чат:</b>\n🔗 {channel_link}\n\n"
-        f"Присоединяйтесь к сообществу!",
+        "".join(parts),
         reply_markup=await _main_kb(msg.from_user.id),
         parse_mode="HTML",
         disable_web_page_preview=True
