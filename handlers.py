@@ -26,7 +26,7 @@ from keyboards import (
     kb_sub_check, kb_admin_panel, kb_deleteall_confirm, kb_delete_confirm,
     kb_admin_menu, kb_tournament_menu, kb_welcome_menu, kb_notifications_menu, kb_channel_menu,
     kb_superuser_main, kb_superuser_back, kb_clear_logs_confirm,
-    kb_post_reg_menu, kb_reg_settings, kb_my_data,
+    kb_post_reg_menu, kb_reg_settings, kb_my_data, kb_edit_success,
     kb_users_menu, kb_messages_menu, kb_settings_menu,
     TIERS, get_rank_label, get_auto_mmr, get_mmr_range,
 )
@@ -582,9 +582,44 @@ async def my_data_edit_callback(callback: CallbackQuery, state: FSMContext):
 
 
 async def my_data_back_callback(callback: CallbackQuery, state: FSMContext):
-    """Кнопка назад при редактировании"""
+    """Кнопка назад — показывает анкету пользователя"""
+    # First try to get fresh user data
+    user = await get_user(callback.from_user.id)
     await state.clear()
-    await callback.message.edit_text("Отмена редактирования")
+    
+    if not user:
+        await callback.message.edit_text("❌ Ты не зарегистрирован. Нажми <b>🎮 Регистрация</b>.", parse_mode="HTML")
+        await callback.answer()
+        return
+    
+    tracker = user.get("tracker") or "—"
+    tracker_line = f'5️⃣ RL Tracker: <a href="{tracker}">открыть</a>' if tracker != "—" else "5️⃣ RL Tracker: —"
+    
+    try:
+        await callback.message.edit_text(
+            f"📋 <b>Твоя анкета:</b>\n\n"
+            f"1️⃣ Epic ID: <b>{user['epic']}</b>\n"
+            f"2️⃣ Discord: <b>{user['discord']}</b>\n"
+            f"3️⃣ Актуальный MMR: <b>{user['rank']}</b>\n"
+            f"4️⃣ Пиковый MMR: <b>{user['peak_rank']}</b>\n"
+            f"{tracker_line}",
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=kb_my_data
+        )
+    except Exception as e:
+        print(f"my_data_back_callback error: {e}")
+        await callback.message.answer(
+            f"📋 <b>Твоя анкета:</b>\n\n"
+            f"1️⃣ Epic ID: <b>{user['epic']}</b>\n"
+            f"2️⃣ Discord: <b>{user['discord']}</b>\n"
+            f"3️⃣ Актуальный MMR: <b>{user['rank']}</b>\n"
+            f"4️⃣ Пиковый MMR: <b>{user['peak_rank']}</b>\n"
+            f"{tracker_line}",
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=kb_my_data
+        )
     await callback.answer()
 
 
@@ -623,7 +658,7 @@ async def my_data_edit_handler(msg: types.Message, state: FSMContext):
         label = label_map.get(field, field)
         await msg.answer(
             f"✅ <b>{label}</b> обновлён!\n\nНовое значение: <b>{value}</b>",
-            reply_markup=kb_my_data,
+            reply_markup=kb_edit_success,
             parse_mode="HTML"
         )
         await log_activity(msg.from_user.id, msg.from_user.username, "EDIT_PROFILE", f"Изменён {label}: {value}")

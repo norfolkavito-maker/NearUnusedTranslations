@@ -138,6 +138,11 @@ kb_my_data_back = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="◀️ Назад", callback_data="mydata:back")],
 ])
 
+kb_edit_success = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✏️ Редактировать ещё", callback_data="mydata:my_data")],
+    [InlineKeyboardButton(text="◀️ Назад к анкете", callback_data="mydata:back")],
+])
+
 kb_deleteall_confirm = InlineKeyboardMarkup(inline_keyboard=[[
     InlineKeyboardButton(text="✅ Да, удалить всех", callback_data="adm:deleteall_yes"),
     InlineKeyboardButton(text="❌ Отмена",            callback_data="adm:cancel"),
