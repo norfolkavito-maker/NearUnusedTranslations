@@ -671,8 +671,8 @@ async def admin_back_handler(msg: types.Message):
         return
     count = await count_users()
     await msg.answer(
-        f"⚙️ <b>Админ-панель</b>\n👥 Участников: <b>{count}</b>",
-        reply_markup=kb_admin_panel,
+        f"⚙️ <b>Главное меню</b>\n👥 Участников: <b>{count}</b>",
+        reply_markup=kb_admin_main,
         parse_mode="HTML"
     )
 
