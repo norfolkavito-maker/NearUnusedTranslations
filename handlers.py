@@ -23,6 +23,8 @@ from db import (
     add_user_message, get_unread_messages, get_all_messages, mark_message_read, mark_message_replied, get_unread_messages_count,
     # Duplicates
     find_duplicate_usernames, delete_user_by_tg_id,
+    # Tournament Registration
+    is_registration_open, toggle_registration, get_active_tournaments, update_user_tournament,
 )
 from states import Registration, Admin, ContactAdmin, SuperUser
 from keyboards import (
@@ -108,6 +110,19 @@ async def registration_handler(msg: types.Message, state: FSMContext, bot: Bot):
     tg_id = msg.from_user.id
     if await check_user(tg_id):
         await msg.answer("✅ Ты уже зарегистрирован! Используй <b>📋 Мои данные</b> чтобы посмотреть анкету.", parse_mode="HTML")
+        return
+
+    # Проверяем открыта ли регистрация
+    reg_open = await is_registration_open()
+    if not reg_open:
+        await msg.answer(
+            "🚫 <b>Регистрация на ближайший турнир закончена</b>\n\n"
+            "Но ты можешь зарегистрироваться, чтобы участвовать в следующих турнирах.\n"
+            "Твоя запись будет со статусом <b>БЕЗ ТУРНИРА</b>.",
+            parse_mode="HTML"
+        )
+        # Продолжаем регистрацию но без турнира
+        await _start_registration(msg, state, skip_tournament=True)
         return
 
     try:
@@ -508,7 +523,7 @@ async def _save_and_finish_msg(msg: types.Message, state: FSMContext, peak_rank:
 
 # ── /me ──────────────────────────────────────────────────────────────────────
 EDIT_FIELDS = {
-    "epic": ("Epic ID (ник в RL)", "✏️ Введи новый Epic ID (ник в RL):"),
+    "epic": ("Ник из RL", "✏️ Введи новый Ник из RL:"),
     "discord": ("Discord", "✏️ Введи новый Discord (например User#1234):"),
     "rank": ("Актуальный MMR", "✏️ Введи новый актуальный MMR:"),
     "peak": ("Пиковый MMR", "✏️ Введи новый пиковый MMR:"),
@@ -658,7 +673,7 @@ async def my_data_edit_handler(msg: types.Message, state: FSMContext):
     
     if success:
         # Map field name to label
-        label_map = {"epic": "Epic ID (ник в RL)", "discord": "Discord", "rank": "Актуальный MMR", "peak_rank": "Пиковый MMR", "tracker": "RL Tracker"}
+        label_map = {"epic": "Ник из RL", "discord": "Discord", "rank": "Актуальный MMR", "peak_rank": "Пиковый MMR", "tracker": "RL Tracker"}
         label = label_map.get(field, field)
         await msg.answer(
             f"✅ <b>{label}</b> обновлён!\n\nНовое значение: <b>{value}</b>",

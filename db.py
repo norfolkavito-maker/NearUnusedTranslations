@@ -82,7 +82,7 @@ def _init_db_sync():
             ("users", """CREATE TABLE IF NOT EXISTS users (
                 tg_id INTEGER PRIMARY KEY, username TEXT, epic TEXT,
                 discord TEXT, rank TEXT, peak_rank TEXT, tracker TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
+                tournament_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
             ("admins", """CREATE TABLE IF NOT EXISTS admins (
                 tg_id INTEGER PRIMARY KEY, username TEXT,
                 added_by INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
@@ -96,7 +96,8 @@ def _init_db_sync():
             ("tournaments", """CREATE TABLE IF NOT EXISTS tournaments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
                 description TEXT, date_time TEXT, max_players INTEGER,
-                prize TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
+                prize TEXT, is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
             ("welcome_messages", """CREATE TABLE IF NOT EXISTS welcome_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
                 is_active BOOLEAN DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
@@ -118,6 +119,7 @@ def _init_db_sync():
                 id INTEGER PRIMARY KEY DEFAULT 1, require_epic BOOLEAN DEFAULT 1,
                 require_discord BOOLEAN DEFAULT 1, require_rank BOOLEAN DEFAULT 1,
                 require_peak_rank BOOLEAN DEFAULT 1, require_tracker BOOLEAN DEFAULT 1,
+                registration_open BOOLEAN DEFAULT 1, require_tournament BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""),
             ("post_registration_messages", """CREATE TABLE IF NOT EXISTS post_registration_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT,
@@ -803,4 +805,65 @@ async def delete_user_by_tg_id(tg_id):
         return user
     except Exception as e:
         print(f"❌ Ошибка удаления пользователя: {e}")
+        return None
+
+
+# ── Tournament Registration Control ──────────────────────────────────────────
+async def is_registration_open():
+    """Проверить открыта ли регистрация"""
+    try:
+        cur = await _safe_query("SELECT registration_open FROM registration_settings WHERE id = 1")
+        if cur is None:
+            return True
+        row = _fetchone(cur)
+        if row:
+            return bool(row[0])
+        return True
+    except Exception:
+        return True
+
+
+async def toggle_registration():
+    """Переключить статус регистрации (открыта/закрыта)"""
+    try:
+        current = await is_registration_open()
+        new_status = not current
+        await _safe_query("UPDATE registration_settings SET registration_open = ? WHERE id = 1", (new_status,))
+        return new_status
+    except Exception as e:
+        print(f"❌ Ошибка переключения регистрации: {e}")
+        return None
+
+
+async def get_active_tournaments():
+    """Получить активные турниры"""
+    try:
+        cur = await _safe_query("SELECT * FROM tournaments WHERE is_active = 1 ORDER BY date_time ASC")
+        if cur is None:
+            return []
+        rows = _fetchall(cur)
+        return [dict(zip(["id","name","description","date_time","max_players","prize","is_active","created_at"], r)) for r in rows]
+    except Exception:
+        return []
+
+
+async def update_user_tournament(tg_id, tournament_id):
+    """Обновить турнир пользователя"""
+    try:
+        await _safe_query("UPDATE users SET tournament_id = ? WHERE tg_id = ?", (tournament_id, tg_id))
+        return True
+    except Exception as e:
+        print(f"❌ Ошибка обновления турнира пользователя: {e}")
+        return False
+
+
+async def get_user_tournament(tg_id):
+    """Получить турнир пользователя"""
+    try:
+        cur = await _safe_query("SELECT tournament_id FROM users WHERE tg_id = ?", (tg_id,))
+        if cur is None:
+            return None
+        row = _fetchone(cur)
+        return row[0] if row else None
+    except Exception:
         return None

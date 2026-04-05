@@ -9,6 +9,7 @@ class MyData(StatesGroup):
     waiting_tracker = State()
 
 class Registration(StatesGroup):
+    waiting_tournament_select = State()
     epic_id = State()
     discord = State()
     rank = State()

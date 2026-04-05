@@ -85,6 +85,7 @@ kb_tournament_menu = ReplyKeyboardMarkup(
         [KeyboardButton(text="➕ Создать турнир")],
         [KeyboardButton(text="📋 Список турниров")],
         [KeyboardButton(text="🔔 Настроить уведомления")],
+        [KeyboardButton(text="🚫 Остановить регистрацию")],
         [KeyboardButton(text="◀️ Назад")]
     ],
     resize_keyboard=True
@@ -125,7 +126,7 @@ kb_delete_confirm = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 kb_my_data = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✏️ Epic ID (ник в RL)", callback_data="mydata:edit_epic"),
+    [InlineKeyboardButton(text="✏️ Ник из RL", callback_data="mydata:edit_epic"),
      InlineKeyboardButton(text="✏️ Discord", callback_data="mydata:edit_discord")],
     [InlineKeyboardButton(text="✏️ MMR", callback_data="mydata:edit_rank"),
      InlineKeyboardButton(text="✏️ Пик MMR", callback_data="mydata:edit_peak")],
@@ -311,6 +312,21 @@ def kb_subtiers(prefix: str, tier_idx: int) -> InlineKeyboardMarkup:
         ],
         [InlineKeyboardButton(text="◀️ Назад", callback_data=f"rb:{prefix}")],
     ])
+
+def kb_tournament_select(tournaments: list) -> InlineKeyboardMarkup:
+    """Inline-клавиатура выбора турнира при регистрации"""
+    buttons = []
+    for t in tournaments:
+        buttons.append([InlineKeyboardButton(
+            text=f"🏆 {t['name']} ({t['date_time']})",
+            callback_data=f"reg_tour:{t['id']}"
+        )])
+    buttons.append([InlineKeyboardButton(
+        text="⏭️ Пропустить (БЕЗ ТУРНИРА)",
+        callback_data="reg_tour:skip"
+    )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def kb_divisions(prefix: str, tier_idx: int, sub: int) -> InlineKeyboardMarkup:
     buttons = []
