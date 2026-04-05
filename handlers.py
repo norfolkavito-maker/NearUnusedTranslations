@@ -139,14 +139,40 @@ async def registration_handler(msg: types.Message, state: FSMContext, bot: Bot):
     await _start_registration(msg, state)
 
 
-async def _start_registration(msg: types.Message, state: FSMContext = None):
+async def _start_registration(msg: types.Message, state: FSMContext = None, skip_tournament: bool = False):
     settings = await get_registration_settings()
+    require_tournament = settings.get("require_tournament", False) if settings else False
     require_epic = settings.get("require_epic", True) if settings else True
     
+    # Если регистрация закрыта — пропускаем выбор турнира
+    reg_open = await is_registration_open()
+    if not reg_open:
+        skip_tournament = True
+    
+    # Проверяем нужно ли показывать выбор турнира
+    if require_tournament and not skip_tournament:
+        tournaments = await get_active_tournaments()
+        if tournaments:
+            from keyboards import kb_tournament_select
+            await msg.answer(
+                "🏆 <b>Выбери турнир для участия:</b>",
+                reply_markup=kb_tournament_select(tournaments),
+                parse_mode="HTML"
+            )
+            if state:
+                await state.set_state(Registration.waiting_tournament_select)
+            return
+    
+    # Пропускаем выбор турнира
+    await _start_registration_after_tournament(msg, state, require_epic)
+
+
+async def _start_registration_after_tournament(msg: types.Message, state: FSMContext = None, require_epic: bool = True):
+    """Продолжение регистрации после выбора турнира (или пропуска)"""
     if require_epic:
         await msg.answer(
             "📝 <b>Регистрация</b>\n\n"
-            "1️⃣ Введи свой <b>Epic ID</b>:",
+            "1️⃣ Введи свой <b>Ник из RL</b>:",
             parse_mode="HTML"
         )
         if state:
@@ -212,6 +238,69 @@ async def sub_check_callback(callback: CallbackQuery, state: FSMContext, bot: Bo
         await callback.answer()
     except Exception as e:
         print(f"⚠️ Ошибка ответа на callback: {e}")
+
+
+# ── Шаги регистрации ─────────────────────────────────────────────────────────
+# ── Tournament Selection Callback ────────────────────────────────────────────
+async def tournament_select_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора турнира при регистрации"""
+    _, action = callback.data.split(":")
+    
+    if action == "skip":
+        await state.update_data(tournament_id=None)
+        await callback.message.edit_text(
+            "✅ Регистрация без турнира — ты будешь участвовать в следующих турнирах!",
+            parse_mode="HTML"
+        )
+        # Continue registration
+        settings = await get_registration_settings()
+        require_epic = settings.get("require_epic", True) if settings else True
+        await _start_registration_after_tournament(callback.message, state, require_epic)
+        await callback.answer()
+        return
+    
+    # Tournament selected
+    tournament_id = int(action)
+    await state.update_data(tournament_id=tournament_id)
+    
+    # Get tournament info
+    tournament = await get_tournament(tournament_id)
+    if tournament:
+        await callback.message.edit_text(
+            f"✅ Выбран турнир: <b>{tournament['name']}</b>\n"
+            f"📅 {tournament['date_time']}\n\n"
+            f"Теперь продолжим регистрацию!",
+            parse_mode="HTML"
+        )
+    else:
+        await callback.message.edit_text("✅ Турнир выбран!", parse_mode="HTML")
+    
+    # Continue registration
+    settings = await get_registration_settings()
+    require_epic = settings.get("require_epic", True) if settings else True
+    await _start_registration_after_tournament(callback.message, state, require_epic)
+    await callback.answer()
+
+
+# ── Registration Toggle Handler ──────────────────────────────────────────────
+async def admin_toggle_registration_handler(msg: types.Message):
+    """Переключение статуса регистрации"""
+    if not await is_admin(msg.from_user.id):
+        return
+    
+    new_status = await toggle_registration()
+    if new_status is not None:
+        status_text = "открыта" if new_status else "закрыта"
+        emoji = "✅" if new_status else "🚫"
+        await msg.answer(
+            f"{emoji} <b>Регистрация теперь {status_text}!</b>",
+            reply_markup=kb_tournament_menu,
+            parse_mode="HTML"
+        )
+        await log_activity(msg.from_user.id, msg.from_user.username, "TOGGLE_REGISTRATION", 
+                          f"Регистрация {'открыта' if new_status else 'закрыта'}")
+    else:
+        await msg.answer("❌ Ошибка при переключении регистрации", reply_markup=kb_tournament_menu)
 
 
 # ── Шаги регистрации ─────────────────────────────────────────────────────────

@@ -48,6 +48,8 @@ from handlers import (
     # Duplicate detection & user messages
     superuser_find_duplicates_callback, superuser_delete_dup_callback,
     admin_user_messages_callback, admin_view_message_callback, admin_start_reply_callback, admin_send_reply_handler,
+    # Tournament registration
+    tournament_select_callback, admin_toggle_registration_handler,
 )
 from db import init_db, add_admin, get_pending_notifications
 from config import TOKEN
@@ -284,6 +286,12 @@ def register_handlers(dp: Dispatcher):
     # superuser duplicates
     dp.callback_query.register(superuser_find_duplicates_callback, F.data == "su:find_duplicates")
     dp.callback_query.register(superuser_delete_dup_callback, F.data.startswith("su:delete_dup:"))
+    
+    # tournament selection during registration
+    dp.callback_query.register(tournament_select_callback, F.data.startswith("reg_tour:"))
+    
+    # registration toggle
+    dp.message.register(admin_toggle_registration_handler, F.text == "🚫 Остановить регистрацию")
     
     # admin user messages
     dp.callback_query.register(admin_user_messages_callback, F.data == "su:user_messages")

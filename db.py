@@ -648,7 +648,7 @@ async def get_registration_settings():
             return None
         row = _fetchone(cur)
         if row:
-            return dict(zip(["id","require_epic","require_discord","require_rank","require_peak_rank","require_tracker","created_at"], row))
+            return dict(zip(["id","require_epic","require_discord","require_rank","require_peak_rank","require_tracker","registration_open","require_tournament","created_at"], row))
         return None
     except Exception:
         return None
@@ -664,8 +664,8 @@ async def update_registration_settings(**kwargs):
             settings[k] = v
     try:
         print(f"[DB] UPDATE registration_settings: {kwargs}")
-        await _safe_query("UPDATE registration_settings SET require_epic=?,require_discord=?,require_rank=?,require_peak_rank=?,require_tracker=? WHERE id=1",
-            (settings["require_epic"],settings["require_discord"],settings["require_rank"],settings["require_peak_rank"],settings["require_tracker"]))
+        await _safe_query("UPDATE registration_settings SET require_epic=?,require_discord=?,require_rank=?,require_peak_rank=?,require_tracker=?,require_tournament=? WHERE id=1",
+            (settings.get("require_epic", True), settings.get("require_discord", True), settings.get("require_rank", True), settings.get("require_peak_rank", True), settings.get("require_tracker", True), settings.get("require_tournament", False)))
         print(f"[DB] UPDATE successful")
         return True
     except Exception as e:

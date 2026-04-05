@@ -275,6 +275,7 @@ def make_kb_reg_settings(settings=None):
         [InlineKeyboardButton(text=f"{icon('require_rank')} Актуальный MMR", callback_data="adm:regset:rank")],
         [InlineKeyboardButton(text=f"{icon('require_peak_rank')} Пиковый MMR", callback_data="adm:regset:peak_rank")],
         [InlineKeyboardButton(text=f"{icon('require_tracker')} RL Tracker", callback_data="adm:regset:tracker")],
+        [InlineKeyboardButton(text=f"{icon('require_tournament')} Выбор турнира", callback_data="adm:regset:tournament")],
         [InlineKeyboardButton(text="◀️ Назад", callback_data="adm:back")],
     ])
 
